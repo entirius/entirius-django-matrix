@@ -1,0 +1,6 @@
+from django_matrix.admin.attribute import AttributeAdmin
+from django_matrix.admin.channel import ChannelAdmin
+from django_matrix.admin.matrix_settings import MatrixSettingsAdmin
+from django_matrix.admin.product_price import ProductPriceAdmin
+from django_matrix.admin.product_representation import ProductRepresentationAdmin
+from django_matrix.admin.product_t9n import ProductT9NAdmin

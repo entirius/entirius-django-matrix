@@ -1,0 +1,2 @@
+from .custom_attributes import get_custom_attributes
+from .custom_details import get_custom_details

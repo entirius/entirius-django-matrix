@@ -1,0 +1,1 @@
+from django_matrix.signals.receivers import update_product_stock_on_stock_changed

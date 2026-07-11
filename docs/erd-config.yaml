@@ -1,0 +1,18 @@
+app_label: django_matrix
+groups:
+  - name: channel-features
+    title: "Channel & Feature Configuration"
+    models:
+      - Channel
+      - FilterableFeatures
+      - SortableFeatures
+      - SearchableFeatures
+      - VisibilityFeatures
+
+  - name: products
+    title: "Product Read Model"
+    models:
+      - ProductRepresentation
+      - ProductPrice
+      - ProductT9N
+      - Attribute
