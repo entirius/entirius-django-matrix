@@ -1,6 +1,6 @@
 [project]
 name = "entirius-django-matrix"
-version = "4.0.0"
+version = "4.1.0"
 description = "Storefront read model for Django: a denormalized product/catalog projection with faceted search, pricing and stock"
 authors = [{ name = "Entirius" }]
 readme = "README.md"
@@ -13,7 +13,8 @@ dependencies = [
     "pydantic>=2.0",
     "drf-spectacular>=0.27",
     "marshmallow",
-    "marshmallow-dataclass[enum, union]",
+    # no [enum, union] extras — they don't exist in marshmallow-dataclass 8.x (features in base)
+    "marshmallow-dataclass",
     "celery",
     "entirius-django-utils>=2.0.0",
     "entirius-django-pim>=3.0.0",
@@ -31,6 +32,9 @@ test = ["pytest", "pytest-django", "dj-database-url", "psycopg[binary]"]
 qms          = ["entirius-django-qms>=4.0.0"]          # stock read from QMS when django_checkout absent
 pricemanager = ["entirius-django-pricemanager>=4.0.0"]  # price read model (fill worker degrades gracefully)
 pricetuner   = ["entirius-django-pricetuner>=2.0.0", "entirius-django-accounts>=5.0.0"]  # customer-group pricing behind USE_PRICE_TUNER_IN_MATRIX
+checkout     = ["entirius-django-checkout>=9.0.0"]     # stock signal/model, QMS fallback + TYPE_CHECKING hints
+omnibus      = ["entirius-django-omnibus>=3.0.0"]      # omnibus price lookup, returns None when absent
+reviews      = ["entirius-django-reviews>=2.0.0"]      # product average-rating fill, returns None when absent
 
 [project.urls]
 Repository = "https://github.com/entirius/entirius-django-matrix"
@@ -77,12 +81,3 @@ pythonpath = ["."]
 
 [tool.deptry]
 pep621_dev_dependency_groups = ["dev", "test"]
-
-[tool.deptry.per_rule_ignores]
-# Soft, lazily imported (try/except with graceful degradation) integrations, not runtime dependencies —
-# the read model works without them; the host service provides them when present:
-#   django_checkout — stock signal/model, QMS fallback + TYPE_CHECKING hints (Etap 5, unreleased)
-#   django_omnibus  — omnibus price lookup, returns None when absent (Etap 5, unreleased)
-#   django_reviews  — product average-rating fill, returns None when absent (co-released fala 4;
-#                     promote to a [reviews] extra once both are on PyPI — tracked in the debt register)
-DEP001 = ["django_checkout", "django_omnibus", "django_reviews"]
