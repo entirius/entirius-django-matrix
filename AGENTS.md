@@ -47,8 +47,9 @@ Denormalized read model of the product catalog for storefront reads.
 - `entirius-django-pricemanager` (extra `pricemanager`) — price fill (soft, degrades gracefully).
 - `entirius-django-pricetuner` + `entirius-django-accounts` (extra `pricetuner`) — customer-group
   pricing behind `USE_PRICE_TUNER_IN_MATRIX` (soft).
-- `django_checkout` / `django_omnibus` (Etap 5, unreleased) and `django_reviews` — soft, lazily
-  imported with graceful degradation; the host service provides them when present.
+- `entirius-django-checkout` (extra `checkout`) — stock signal/model, QMS fallback (soft).
+- `entirius-django-omnibus` (extra `omnibus`) — omnibus price lookup (soft, `None` when absent).
+- `entirius-django-reviews` (extra `reviews`) — product average-rating fill (soft, `None` when absent).
 
 ## Settings Reference
 
