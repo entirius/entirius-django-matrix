@@ -756,7 +756,7 @@ wheels = [
 
 [[package]]
 name = "entirius-django-matrix"
-version = "4.1.0"
+version = "4.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "celery" },
@@ -791,10 +791,6 @@ omnibus = [
 pricemanager = [
     { name = "entirius-django-pricemanager" },
 ]
-pricetuner = [
-    { name = "entirius-django-accounts" },
-    { name = "entirius-django-pricetuner" },
-]
 qms = [
     { name = "entirius-django-qms" },
 ]
@@ -816,12 +812,10 @@ requires-dist = [
     { name = "djangorestframework", specifier = ">=3.14" },
     { name = "djangorestframework-simplejwt", specifier = ">=5.3" },
     { name = "drf-spectacular", specifier = ">=0.27" },
-    { name = "entirius-django-accounts", marker = "extra == 'pricetuner'", specifier = ">=5.0.0" },
     { name = "entirius-django-checkout", marker = "extra == 'checkout'", specifier = ">=9.0.0" },
     { name = "entirius-django-omnibus", marker = "extra == 'omnibus'", specifier = ">=3.0.0" },
     { name = "entirius-django-pim", specifier = ">=3.0.0" },
     { name = "entirius-django-pricemanager", marker = "extra == 'pricemanager'", specifier = ">=4.0.0" },
-    { name = "entirius-django-pricetuner", marker = "extra == 'pricetuner'", specifier = ">=2.0.0" },
     { name = "entirius-django-qms", marker = "extra == 'qms'", specifier = ">=4.0.0" },
     { name = "entirius-django-regional", specifier = ">=2.0.0" },
     { name = "entirius-django-reviews", marker = "extra == 'reviews'", specifier = ">=2.0.0" },
@@ -839,7 +833,7 @@ requires-dist = [
     { name = "pytest-django", marker = "extra == 'test'" },
     { name = "ruff", marker = "extra == 'dev'" },
 ]
-provides-extras = ["dev", "test", "qms", "pricemanager", "pricetuner", "checkout", "omnibus", "reviews"]
+provides-extras = ["dev", "test", "qms", "pricemanager", "checkout", "omnibus", "reviews"]
 
 [[package]]
 name = "entirius-django-omnibus"
@@ -922,25 +916,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d1/8c/069aa997b3e42d5da659dfe653cb9a83ae312bb43dc0eb59e8d6f1859fbc/entirius_django_pricemanager-4.0.1.tar.gz", hash = "sha256:a95d2a998cbb107ee664332b5dcaedefa9df8e46ce03d7a721d489899f48eb6d", size = 132349, upload-time = "2026-07-12T15:37:05.321Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ac/e0/da8d72439b445e8dac7b3399ee86836a0345162e5469ea520428ebda9bae/entirius_django_pricemanager-4.0.1-py3-none-any.whl", hash = "sha256:aa7511e947f72be47410df879d1b3131162c8f59c3df44fbcb84e35b23472c56", size = 99320, upload-time = "2026-07-12T15:37:04.193Z" },
-]
-
-[[package]]
-name = "entirius-django-pricetuner"
-version = "2.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "django", version = "5.2.16", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "django-admin-inline-paginator" },
-    { name = "entirius-django-accounts" },
-    { name = "entirius-django-pim" },
-    { name = "entirius-django-regional" },
-    { name = "entirius-py-bievents" },
-    { name = "entirius-py-idx-normalizator" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e5/11/6f3ec0aad15dd52e8630906f8605889f052cb1d59139f67bf153844c5baa/entirius_django_pricetuner-2.0.0.tar.gz", hash = "sha256:fadbf714d6b8a61a8cdfdd0271f6947ddf2c4f60edcb93275d802fc4072ea29d", size = 140044, upload-time = "2026-07-11T15:08:58.348Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/f0/780f452594d3a7c1734f7d7ef3770e4b3129d901ea0f1d9bd4267ac64b79/entirius_django_pricetuner-2.0.0-py3-none-any.whl", hash = "sha256:f8b95b8f1ad55490d4cacd49870598dbd4dd0c2d6037d7b095df8081abc071c2", size = 20528, upload-time = "2026-07-11T15:08:57.29Z" },
 ]
 
 [[package]]

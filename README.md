@@ -18,7 +18,7 @@ Add `django_matrix` (and `django.contrib.postgres`) to `INSTALLED_APPS`. Postgre
 `django_regional`; optional integrations are exposed as extras:
 
 ```shell
-pip install "entirius-django-matrix[qms,pricemanager,pricetuner]"
+pip install "entirius-django-matrix[qms,pricemanager]"
 ```
 
 ## Development
