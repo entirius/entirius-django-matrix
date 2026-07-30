@@ -22,6 +22,14 @@ Storefront read model — distribution `entirius-django-matrix`, Django app `dja
 - PostgreSQL only: models use GIN indexes, full-text and trigram search — `django.contrib.postgres` in `INSTALLED_APPS`.
 - Default: do not commit — git is the user's call.
 
+## Commit Message Format
+
+**NEVER add `Co-Authored-By: Claude ...` (or any other Claude/Anthropic attribution) to commit messages.**
+
+This overrides the default Claude Code behavior of appending a `Co-Authored-By` trailer. Commit messages MUST contain only the user's authored content — no robot footer, no "Generated with Claude Code" line, no co-author trailer.
+
+Same rule applies to PR descriptions: no `Generated with [Claude Code]` footer.
+
 ## Architecture
 
 Denormalized read model of the product catalog for storefront reads.
@@ -45,9 +53,9 @@ Denormalized read model of the product catalog for storefront reads.
 - `entirius-py-magento2-sdk2` (**required**) — Magento search/suggest workers.
 - `entirius-django-qms` (extra `qms`) — stock read when `django_checkout` absent (soft).
 - `entirius-django-pricemanager` (extra `pricemanager`) — price fill (soft, degrades gracefully).
-- `entirius-django-pricetuner` + `entirius-django-accounts` (extra `pricetuner`) — customer-group
-  pricing behind `USE_PRICE_TUNER_IN_MATRIX` (soft).
 - `entirius-django-checkout` (extra `checkout`) — stock signal/model, QMS fallback (soft).
+- customer-group pricing behind `USE_PRICE_TUNER_IN_MATRIX` — lazy import with graceful fallback;
+  the integrating package ships outside this repository.
 - `entirius-django-omnibus` (extra `omnibus`) — omnibus price lookup (soft, `None` when absent).
 - `entirius-django-reviews` (extra `reviews`) — product average-rating fill (soft, `None` when absent).
 
