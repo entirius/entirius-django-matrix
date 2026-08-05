@@ -76,6 +76,7 @@ def count_products(
     on_stock: bool | None = None,
     filters: dict | None = None,
     ranges: dict | None = None,
+    search: str | None = None,
 ) -> tuple[int, list[dict]]:
     """Returns (count, warnings) for products matching filters."""
     from django_matrix.utils.params import Query
@@ -90,6 +91,7 @@ def count_products(
         sku=skus,
         type=product_type,
         on_stock=on_stock,
+        search=[search] if search else None,
         query=build_query_filters(filters) if filters else None,
         range=build_range_filters(ranges) if ranges else None,
     )

@@ -5,13 +5,45 @@
 """Shared mixins for v2 views."""
 
 from django.conf import settings
+from drf_spectacular.utils import OpenApiParameter
 from rest_framework.exceptions import NotFound
+from rest_framework.settings import api_settings
 
 from django_matrix.models import Channel
+from django_matrix.services.meta import unknown_param_warnings
+
+# Read by get_regional() on every view, so always allowed regardless of what a view declares.
+REGIONAL_PARAMS = frozenset({"language", "currency", "country"})
+
+# Consumed by DRF's own content negotiation, never by a view. Reporting it as ignored would be a lie.
+FRAMEWORK_PARAMS = frozenset({api_settings.URL_FORMAT_OVERRIDE or "format"})
+
+
+def known_query_params(parameters: list[OpenApiParameter]) -> frozenset[str]:
+    """Static query-param names from an @extend_schema `parameters` list.
+
+    Path params and templated names (`q_{feature_idx}` and friends) are excluded — those are
+    matched by prefix, not by name.
+    """
+    names = {
+        param.name
+        for param in parameters
+        if isinstance(param, OpenApiParameter) and param.location == OpenApiParameter.QUERY and "{" not in param.name
+    }
+    return frozenset(names) | REGIONAL_PARAMS | FRAMEWORK_PARAMS
 
 
 class ChannelMixin:
     """Resolves channel + language/currency/country from URL kwargs and query params."""
+
+    # Opt-in: views that surface param.unknown warnings set this from known_query_params().
+    known_params: frozenset[str] | None = None
+
+    def get_param_warnings(self) -> list[dict]:
+        """`param.unknown` warnings for this request. Empty for views that have not opted in."""
+        if self.known_params is None:
+            return []
+        return unknown_param_warnings(self.request.query_params.keys(), self.known_params)
 
     def get_channel(self):
         channel_idx = self.kwargs.get("channel_idx")

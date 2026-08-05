@@ -384,6 +384,125 @@ class TestProductsMeta:
         assert data["meta"]["warnings"][0]["code"] == "filter.not_filterable"
 
 
+# ── Search on the listing (33731) ────────────────────────────────────
+
+
+class TestProductsSearch:
+    """`?search=` narrows the listing. Regression: v2 used to drop the param silently."""
+
+    BASE = "/api/matrix/v2/test-v2/products/?language=en&currency=EUR&country=PL"
+    COUNT = "/api/matrix/v2/test-v2/products/count/?language=en&currency=EUR&country=PL"
+
+    def test_search_narrows_results(self, api, simple_product, product_with_reviews, searchable_channel):
+        skus = [r["sku"] for r in api.get(f"{self.BASE}&search=Reviewed").json()["results"]]
+        assert skus == ["V2-REVIEW-001"]
+
+    def test_search_matches_both_on_shared_term(self, api, simple_product, product_with_reviews, searchable_channel):
+        skus = {r["sku"] for r in api.get(f"{self.BASE}&search=Chair").json()["results"]}
+        assert skus == {"V2-SIMPLE-001", "V2-REVIEW-001"}
+
+    def test_search_no_match_returns_empty(self, api, simple_product, searchable_channel):
+        assert api.get(f"{self.BASE}&search=zzznomatch").json()["results"] == []
+
+    def test_search_by_sku(self, api, simple_product, searchable_channel):
+        """`sku` is searchable on every channel, no SearchableFeatures row needed."""
+        skus = [r["sku"] for r in api.get(f"{self.BASE}&search=V2-SIMPLE").json()["results"]]
+        assert skus == ["V2-SIMPLE-001"]
+
+    def test_blank_search_is_not_a_filter(self, api, simple_product, product_with_reviews, searchable_channel):
+        """`?search=` and `?search=%20` mean 'no search', not `ILIKE '% %'`."""
+        unfiltered = len(api.get(self.BASE).json()["results"])
+        assert len(api.get(f"{self.BASE}&search=").json()["results"]) == unfiltered
+        assert len(api.get(f"{self.BASE}&search=%20").json()["results"]) == unfiltered
+
+    def test_count_respects_search(self, api, simple_product, product_with_reviews, searchable_channel):
+        """The bug this catches: count_products had no `search` kwarg at all."""
+        assert api.get(f"{self.COUNT}&search=Reviewed").json()["count"] == 1
+        assert api.get(f"{self.COUNT}&search=Chair").json()["count"] == 2
+
+    def test_count_matches_listing(self, api, many_sofas, searchable_channel):
+        listed = api.get(f"{self.BASE}&search=Sofa&page_size=100").json()["results"]
+        assert api.get(f"{self.COUNT}&search=Sofa").json()["count"] == len(listed)
+
+    def test_search_keeps_default_order_without_fts(self, api, many_sofas, searchable_channel):
+        """FTS off (the default): search only shrinks the set, the order stays channel default."""
+        unfiltered = [r["sku"] for r in api.get(f"{self.BASE}&page_size=100").json()["results"]]
+        searched = [r["sku"] for r in api.get(f"{self.BASE}&search=Sofa&page_size=100").json()["results"]]
+        assert searched == [sku for sku in unfiltered if sku in set(searched)]
+
+    def test_search_combines_with_filters(self, api, many_sofas, searchable_channel):
+        data = api.get(f"{self.BASE}&search=Sofa&on_stock=true&page_size=100").json()
+        assert len(data["results"]) == 5
+        assert data["meta"]["status"] == "ok"
+
+    def test_search_and_product_type_narrow_together(
+        self, api, simple_product, configurable_product, searchable_channel
+    ):
+        """AND semantics: a search that matches both types, narrowed to one."""
+        data = api.get(f"{self.BASE}&search=Chair&product_type=CONFIGURABLE&page_size=100").json()
+        assert data["results"] == []
+
+    def test_page_below_one_is_clamped(self, api, many_sofas, searchable_channel):
+        """`?page=0` / negatives would become a negative SQL OFFSET (HTTP 500)."""
+        for page in (0, -1):
+            response = api.get(f"{self.BASE}&search=Sofa&page={page}&page_size=2")
+            assert response.status_code == 200
+            assert len(response.json()["results"]) == 2
+
+    def test_format_param_is_not_reported_as_unknown(self, api, simple_product, channel_full):
+        assert api.get(f"{self.BASE}&format=json").json()["meta"]["warnings"] == []
+
+
+# ── Unknown query params (33731) ─────────────────────────────────────
+
+
+class TestUnknownParams:
+    """Unknown params warn, never reject — consumers forward whole query strings."""
+
+    BASE = "/api/matrix/v2/test-v2/products/?language=en&currency=EUR&country=PL"
+
+    def test_tracking_param_warns_without_failing(self, api, simple_product, channel_full):
+        response = api.get(f"{self.BASE}&utm_source=google")
+        assert response.status_code == 200
+        meta = response.json()["meta"]
+        assert meta["status"] == "warning"
+        assert meta["warnings"][0] == {
+            "code": "param.unknown",
+            "param": "utm_source",
+            "message": "unknown query param 'utm_source' was ignored",
+        }
+
+    def test_limit_is_not_an_alias_for_page_size(self, api, simple_product, channel_full):
+        """v2 reads `page_size`. `limit` is v1 naming and is reported, not silently honoured."""
+        data = api.get(f"{self.BASE}&limit=1&page_size=100").json()
+        assert len(data["results"]) > 0
+        assert [w["param"] for w in data["meta"]["warnings"]] == ["limit"]
+
+    def test_repository_and_view_warnings_merge(self, api, simple_product, channel_full):
+        meta = api.get(f"{self.BASE}&q_notafilter=x&gclid=abc").json()["meta"]
+        assert [w["code"] for w in meta["warnings"]] == ["filter.not_filterable", "param.unknown"]
+
+    def test_dynamic_prefixes_never_warn_as_unknown(self, api, simple_product, channel_full):
+        meta = api.get(f"{self.BASE}&q_color=red&r_price=1&r_price=2&s_name=asc").json()["meta"]
+        assert all(w["code"] != "param.unknown" for w in meta["warnings"])
+
+    def test_full_declared_param_set_is_clean(self, api, simple_product, channel_full):
+        """Anti-drift: fails the moment a param is read in get() without being declared."""
+        params = (
+            "&page=1&page_size=12&include=full&category=x&search=y&url_key=z&sku=A&product_type=SIMPLE&on_stock=true"
+        )
+        assert api.get(f"{self.BASE}{params}").json()["meta"] == {"status": "ok", "warnings": []}
+
+    def test_count_endpoint_warns_too(self, api, simple_product, channel_full):
+        base = "/api/matrix/v2/test-v2/products/count/?language=en&currency=EUR&country=PL"
+        assert [w["param"] for w in api.get(f"{base}&utm_source=x").json()["meta"]["warnings"]] == ["utm_source"]
+
+    def test_page_size_is_unknown_on_count(self, api, simple_product, channel_full):
+        """count/ has no pagination, so page_size there is a client mistake worth reporting."""
+        base = "/api/matrix/v2/test-v2/products/count/?language=en&currency=EUR&country=PL"
+        assert [w["param"] for w in api.get(f"{base}&page_size=10").json()["meta"]["warnings"]] == ["page_size"]
+
+
 # ── Product type filter ──────────────────────────────────────────────
 
 
