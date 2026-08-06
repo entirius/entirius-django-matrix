@@ -5,11 +5,17 @@
 import logging
 from decimal import Decimal
 
+from django.core.exceptions import ObjectDoesNotExist
+from django_pim.services.bundle_data import bulk_get_bundle_limits, get_bundle_subproducts
 from process_logger import ProcessLogger
 
 from django_matrix.enums import ProductType
 from django_matrix.models import Channel, ProductPrice, ProductRepresentation
 from django_matrix.repository.orm.prices import Prices
+from django_matrix.services.bundle_service import (
+    aggregate_ranged_bundle_for_read_model,
+    get_default_selected_skus,
+)
 from django_matrix.utils.timestamp_print import timestamp_print
 
 try:
@@ -199,6 +205,15 @@ def fill_read_model_prices(channel: Channel, product_id: str = None):
         pr.sku: pr for pr in ProductRepresentation.objects.filter(channel=channel, **pr_query).select_related("parent")
     }
 
+    # Ranged bundles are priced from their default subproducts, not from their own
+    # pricelist row. That pass runs FIRST and reports back exactly which
+    # (sku, country, currency) rows it wrote; the main loop then skips only those.
+    # Running it first means no wrong value is ever briefly stored, and a bundle
+    # whose aggregation failed still falls back to its own pricelist row below
+    # instead of ending up with no ProductPrice at all.
+    ranged_bundle_data = _prepare_ranged_bundle_data(channel, product_id)
+    ranged_bundle_written = fill_ranged_bundles_read_model(channel, process_logger, ranged_bundle_data, omnibus_cache)
+
     for country_obj in channel.countries.all():
         country = country_obj.iso2.upper()
         process_logger.add_log_param("country", country)
@@ -252,18 +267,15 @@ def fill_read_model_prices(channel: Channel, product_id: str = None):
 
                     process_logger.add_log_param("product_sku", sku)
 
-                    is_price_offer = False
-                    max_price_offer = None
-                    min_price_offer = None
-                    try:
-                        from django_checkout.output.sale_offer import get_offer_price_range
+                    # Already written from the default subproducts by the ranged-bundle pass.
+                    # Bundles missing from that set (aggregation failed) fall through and get
+                    # their own pricelist row, as before the ranged pass existed.
+                    if (sku, country_obj.pk, currency_obj.pk) in ranged_bundle_written:
+                        continue
 
-                        min_price_offer, max_price_offer = get_offer_price_range(sku, channel.idx, country, currency)
-                        if min_price_offer and max_price_offer:
-                            is_price_offer = True
-                    except Exception as e:
-                        process_logger.set_code(4025)
-                        process_logger.exception(e)
+                    min_price_offer, max_price_offer, is_price_offer = _resolve_offer_price_range(
+                        sku, channel.idx, country, currency, process_logger
+                    )
 
                     omnibus_price = (
                         omnibus_cache[currency][sku]
@@ -535,3 +547,197 @@ def fill_read_model_prices(channel: Channel, product_id: str = None):
             process_logger.delete_log_param("currency")
 
         process_logger.delete_log_param("country")
+
+
+def _resolve_offer_price_range(
+    sku: str, channel_idx: str, country: str, currency: str, process_logger: ProcessLogger
+) -> tuple:
+    """Read the checkout sale-offer range for a SKU.
+
+    Returns (min_price_offer, max_price_offer, is_price_offer). django-checkout is
+    optional, so an unavailable module or a failing lookup degrades to "no offer"
+    rather than aborting the price fill.
+    """
+    try:
+        from django_checkout.output.sale_offer import get_offer_price_range
+
+        min_price_offer, max_price_offer = get_offer_price_range(sku, channel_idx, country, currency)
+        return min_price_offer, max_price_offer, bool(min_price_offer and max_price_offer)
+    except Exception as e:
+        process_logger.set_code(4025)
+        process_logger.exception(e)
+        return None, None, False
+
+
+def _prepare_ranged_bundle_data(channel: Channel, product_id: str = None) -> dict:
+    """Discover ranged bundles in the channel and pre-compute their default
+    selection, so the ranged pass runs off one consistent snapshot.
+
+    Returns:
+        {
+            "links_map": dict,                # {bundle_sku: {sub_sku: meta}}
+            "defaults_per_bundle": dict,      # {bundle_sku: set[default_sub_skus]}
+        }
+    """
+    representation_qs = ProductRepresentation.objects.filter(channel=channel, product_type=ProductType.PRODUCT_BUNDLE)
+    if product_id:
+        representation_qs = representation_qs.filter(sku=product_id)
+
+    channel_bundle_skus = list(representation_qs.values_list("sku", flat=True))
+    if not channel_bundle_skus:
+        return {"links_map": {}, "defaults_per_bundle": {}}
+
+    limits_map = bulk_get_bundle_limits(channel.idx, channel_bundle_skus)
+    if not limits_map:
+        return {"links_map": {}, "defaults_per_bundle": {}}
+
+    ranged_skus = list(limits_map.keys())
+    links_map = get_bundle_subproducts(channel.idx, ranged_skus)
+
+    defaults_per_bundle: dict = {}
+    for bundle_sku in ranged_skus:
+        defaults = get_default_selected_skus(bundle_sku, links_map, limits_map)
+        if defaults:
+            defaults_per_bundle[bundle_sku] = defaults
+
+    return {"links_map": links_map, "defaults_per_bundle": defaults_per_bundle}
+
+
+def fill_ranged_bundles_read_model(
+    channel: Channel, process_logger: ProcessLogger, ranged_bundle_data: dict, omnibus_cache: dict
+) -> set:
+    """First pass: write ProductPrice for ranged bundles from their default subproducts.
+
+    Ranged bundles (with min_limit_bundle or max_limit_bundle attribute) cannot
+    rely on their own pricelist row — its meaning is undefined for a bundle
+    where the customer picks a subset. Instead we sum the default subproducts
+    (is_required OR is_default) and store that as the bundle's listing price.
+
+    Receives pre-computed `ranged_bundle_data` from `_prepare_ranged_bundle_data`
+    so this pass and the main loop operate on the exact same SKU set — no
+    drift, no duplicate I/O.
+
+    Returns the set of (sku, country_id, currency_id) rows actually written. The
+    main loop skips exactly those; anything missing (no pricelist entry for a
+    default subproduct, bundle absent from the read model) falls through and is
+    priced from the bundle's own pricelist row instead of being left without one.
+    """
+    defaults_per_bundle = ranged_bundle_data["defaults_per_bundle"]
+    links_map = ranged_bundle_data["links_map"]
+    written: set = set()
+    if not defaults_per_bundle:
+        return written
+
+    timestamp_print(f"[ranged-bundles] aggregating {len(defaults_per_bundle)} bundles for {channel.idx}")
+
+    for country_obj in channel.countries.all():
+        country = country_obj.iso2.upper()
+        process_logger.add_log_param("country", country)
+        for currency_obj in channel.currencies.all():
+            currency = currency_obj.iso3.upper()
+            process_logger.add_log_param("currency", currency)
+            for bundle_sku, default_skus in defaults_per_bundle.items():
+                process_logger.add_log_param("product_sku", bundle_sku)
+                try:
+                    aggregated = aggregate_ranged_bundle_for_read_model(
+                        channel_idx=channel.idx,
+                        country_code=country,
+                        currency_code=currency,
+                        bundle_sku=bundle_sku,
+                        default_skus=default_skus,
+                        links=links_map.get(bundle_sku, {}),
+                    )
+                    if aggregated is None:
+                        process_logger.warning(
+                            f"Ranged bundle {bundle_sku} for {country}/{currency}: missing prices for one "
+                            "or more default subproducts — falling back to its own pricelist row"
+                        )
+                        continue
+                    min_price_offer, max_price_offer, is_price_offer = _resolve_offer_price_range(
+                        bundle_sku, channel.idx, country, currency, process_logger
+                    )
+                    stored = _upsert_ranged_bundle_product_price(
+                        channel=channel,
+                        bundle_sku=bundle_sku,
+                        country_obj=country_obj,
+                        currency_obj=currency_obj,
+                        aggregated=aggregated,
+                        offer=(min_price_offer, max_price_offer, is_price_offer),
+                        omnibus_price=omnibus_cache.get(currency, {}).get(bundle_sku),
+                        process_logger=process_logger,
+                    )
+                    if stored:
+                        written.add((bundle_sku, country_obj.pk, currency_obj.pk))
+                except Exception as e:
+                    process_logger.set_code(4026)
+                    process_logger.exception(e)
+                process_logger.clear_db_operation()
+            process_logger.delete_log_param("currency")
+        process_logger.delete_log_param("country")
+    process_logger.delete_log_param("product_sku")
+    return written
+
+
+def _upsert_ranged_bundle_product_price(
+    channel: Channel,
+    bundle_sku: str,
+    country_obj,
+    currency_obj,
+    aggregated: dict,
+    offer: tuple,
+    omnibus_price,
+    process_logger: ProcessLogger,
+) -> bool:
+    """Write the aggregated price for one ranged bundle. Returns True when a row was stored."""
+    try:
+        pr = ProductRepresentation.objects.get(sku=bundle_sku, channel=channel)
+    except ObjectDoesNotExist:
+        process_logger.set_code(2013)
+        process_logger.info(f"Ranged bundle skipped — sku {bundle_sku} not in ProductRepresentation")
+        return False
+
+    min_price_offer, max_price_offer, is_price_offer = offer
+
+    fields = {
+        "is_range": False,
+        "has_special_price": aggregated["has_special_price"],
+        "price": aggregated["price"],
+        "final_price": aggregated["final_price"],
+        "promo_badge": aggregated["promo_badge"],
+        "special_from_date": aggregated["special_from_date"],
+        "special_to_date": aggregated["special_to_date"],
+        "special_price": aggregated["special_price"],
+        "tax_amount": aggregated["tax_amount"],
+        "tax_rule": aggregated["tax_rule"],
+        "price_tax_config_opposite": aggregated["price_tax_config_opposite"],
+        "special_price_tax_config_opposite": aggregated["special_price_tax_config_opposite"],
+        "min_price_offer": min_price_offer,
+        "max_price_offer": max_price_offer,
+        "is_price_offer": is_price_offer,
+        "omnibus_price": omnibus_price,
+    }
+
+    try:
+        ppp = ProductPrice.objects.get(product_representation=pr, currency=currency_obj, country=country_obj)
+        for key, value in fields.items():
+            setattr(ppp, key, value)
+        ppp.save()
+        process_logger.set_db_operation("UPDATE", "django_matrix", "ProductPrice")
+        process_logger.set_code(2009)
+        process_logger.info(f"ProductPrice updated for ranged bundle: {bundle_sku}")
+        return True
+    except ObjectDoesNotExist:
+        try:
+            ppp = ProductPrice(product_representation=pr, currency=currency_obj, country=country_obj, **fields)
+            ppp.save()
+            process_logger.set_db_operation("CREATED", "django_matrix", "ProductPrice")
+            process_logger.set_code(2010)
+            process_logger.info(f"ProductPrice created for ranged bundle: {bundle_sku}")
+            return True
+        except Exception as e:
+            process_logger.set_code(4008)
+            process_logger.exception(e)
+    except Exception as e:
+        process_logger.set_code(4009)
+        process_logger.exception(e)
+    return False

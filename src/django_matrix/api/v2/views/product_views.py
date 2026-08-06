@@ -8,7 +8,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from django_matrix.api.v2.mixins import ChannelMixin
+from django_matrix.api.v2.mixins import ChannelMixin, known_query_params
 from django_matrix.schemas.responses.common import CountResponse, PaginatedResponse
 from django_matrix.services import product_service
 from django_matrix.services.meta import build_meta
@@ -49,10 +49,64 @@ _S_SORT_PARAM = OpenApiParameter(
         "order by price DESC, then name ASC."
     ),
 )
+_SEARCH_PARAM = OpenApiParameter(
+    name="search",
+    description=(
+        "Free-text query. Matches the fields the channel marks as searchable (always `sku`, plus "
+        "`name` and any searchable feature configured for the channel). Combines with the `q_` / `r_` "
+        "filters. On channels with full-text search enabled it also switches the default order to "
+        "relevance instead of the channel default."
+    ),
+)
+_REGIONAL_PARAMS = [
+    OpenApiParameter(name="language", description="ISO 639-1 language code (defaults to channel language)"),
+    OpenApiParameter(name="currency", description="ISO 4217 currency code (defaults to channel currency)"),
+    OpenApiParameter(name="country", description="ISO 3166-1 country code (defaults to channel country)"),
+]
+_CHANNEL_PARAM = OpenApiParameter(name="channel_idx", location="path", description="Channel identifier")
+
+# Declared once, consumed twice: by @extend_schema (documentation) and by known_query_params
+# (the param.unknown warning). Neither can drift away from the other.
+PRODUCTS_PARAMS = [
+    _CHANNEL_PARAM,
+    *_REGIONAL_PARAMS,
+    OpenApiParameter(name="page", description="Page number (1-based)", type=int),
+    OpenApiParameter(name="page_size", description="Results per page (default 12, max 100)", type=int),
+    OpenApiParameter(name="url_key", description="Single product lookup by URL key"),
+    OpenApiParameter(name="category", description="Filter by category URL key, e.g. `sofas`"),
+    OpenApiParameter(name="sku", description="Batch SKU lookup. Repeat for multiple: `?sku=ABC&sku=DEF`"),
+    _SEARCH_PARAM,
+    _Q_FILTER_PARAM,
+    _R_FILTER_PARAM,
+    _S_SORT_PARAM,
+    OpenApiParameter(name="product_type", description="Filter: `SIMPLE`, `CONFIGURABLE`, `BUNDLE`, `CUSTOM`"),
+    OpenApiParameter(name="on_stock", description="Filter: `true` = in-stock only", type=bool),
+    OpenApiParameter(
+        name="include",
+        description=(
+            "Comma-separated response groups: `visual_assets` (swatches), `attributes` "
+            "(visible attributes), `links` (product links), `full` (everything for PDP SSR)."
+        ),
+    ),
+]
+
+COUNT_PARAMS = [
+    _CHANNEL_PARAM,
+    *_REGIONAL_PARAMS,
+    OpenApiParameter(name="category", description="Filter by category URL key, e.g. `sofas`"),
+    OpenApiParameter(name="sku", description="Batch SKU lookup. Repeat for multiple: `?sku=ABC&sku=DEF`"),
+    _SEARCH_PARAM,
+    _Q_FILTER_PARAM,
+    _R_FILTER_PARAM,
+    OpenApiParameter(name="product_type", description="Filter: `SIMPLE`, `CONFIGURABLE`, `BUNDLE`, `CUSTOM`"),
+    OpenApiParameter(name="on_stock", description="Filter: `true` = in-stock only", type=bool),
+]
 
 
 class ProductsView(ChannelMixin, APIView):
     """Unified products endpoint. Always returns paginated shape. Include groups control depth."""
+
+    known_params = known_query_params(PRODUCTS_PARAMS)
 
     @extend_schema(
         summary="List products",
@@ -71,29 +125,7 @@ class ProductsView(ChannelMixin, APIView):
             "- Combined: `?category=sofas&q_color=red&q_color=blue&r_price=100&r_price=500"
             "&s_price=asc&page=1&page_size=24`"
         ),
-        parameters=[
-            OpenApiParameter(name="channel_idx", location="path", description="Channel identifier"),
-            OpenApiParameter(name="language", description="ISO 639-1 language code (defaults to channel language)"),
-            OpenApiParameter(name="currency", description="ISO 4217 currency code (defaults to channel currency)"),
-            OpenApiParameter(name="country", description="ISO 3166-1 country code (defaults to channel country)"),
-            OpenApiParameter(name="page", description="Page number (1-based)", type=int),
-            OpenApiParameter(name="page_size", description="Results per page (default 12, max 100)", type=int),
-            OpenApiParameter(name="url_key", description="Single product lookup by URL key"),
-            OpenApiParameter(name="category", description="Filter by category URL key, e.g. `sofas`"),
-            OpenApiParameter(name="sku", description="Batch SKU lookup. Repeat for multiple: `?sku=ABC&sku=DEF`"),
-            _Q_FILTER_PARAM,
-            _R_FILTER_PARAM,
-            _S_SORT_PARAM,
-            OpenApiParameter(name="product_type", description="Filter: `SIMPLE`, `CONFIGURABLE`, `BUNDLE`, `CUSTOM`"),
-            OpenApiParameter(name="on_stock", description="Filter: `true` = in-stock only", type=bool),
-            OpenApiParameter(
-                name="include",
-                description=(
-                    "Comma-separated response groups: `visual_assets` (swatches), `attributes` "
-                    "(visible attributes), `links` (product links), `full` (everything for PDP SSR)."
-                ),
-            ),
-        ],
+        parameters=PRODUCTS_PARAMS,
         responses={200: PaginatedResponse},
         tags=["Matrix Products"],
     )
@@ -101,7 +133,7 @@ class ProductsView(ChannelMixin, APIView):
         channel = self.get_channel()
         language, currency, country = self.get_regional(channel)
 
-        page = _safe_int(request.query_params.get("page"), 1)
+        page = parse_page(request.query_params.get("page"))
         page_size = min(_safe_int(request.query_params.get("page_size"), 12), 100)
         include = parse_include(request.query_params.get("include", ""))
 
@@ -117,6 +149,7 @@ class ProductsView(ChannelMixin, APIView):
             url_key=request.query_params.get("url_key"),
             product_type=request.query_params.get("product_type"),
             on_stock=parse_bool(request.query_params.get("on_stock")),
+            search=parse_search(request.query_params.get("search")),
             sort=parse_sort_params(request.query_params, "s_") or None,
             filters=parse_prefix_params(request.query_params, "q_") or None,
             ranges=parse_range_params(request.query_params, "r_") or None,
@@ -130,7 +163,7 @@ class ProductsView(ChannelMixin, APIView):
                 "page": page,
                 "page_size": page_size,
                 "results": serialized,
-                "meta": build_meta(warnings),
+                "meta": build_meta(warnings + self.get_param_warnings()),
             }
         )
         ttl = self.get_cache_ttl("products")
@@ -142,21 +175,12 @@ class ProductsView(ChannelMixin, APIView):
 class ProductCountView(ChannelMixin, APIView):
     """Separate count endpoint — cached independently, longer TTL."""
 
+    known_params = known_query_params(COUNT_PARAMS)
+
     @extend_schema(
         summary="Count products",
         description="Total product count matching filters. Accepts the same filter params as `products/`. Cached with a longer TTL.",
-        parameters=[
-            OpenApiParameter(name="channel_idx", location="path", description="Channel identifier"),
-            OpenApiParameter(name="language", description="ISO 639-1 language code (defaults to channel language)"),
-            OpenApiParameter(name="currency", description="ISO 4217 currency code (defaults to channel currency)"),
-            OpenApiParameter(name="country", description="ISO 3166-1 country code (defaults to channel country)"),
-            OpenApiParameter(name="category", description="Filter by category URL key, e.g. `sofas`"),
-            OpenApiParameter(name="sku", description="Batch SKU lookup. Repeat for multiple: `?sku=ABC&sku=DEF`"),
-            _Q_FILTER_PARAM,
-            _R_FILTER_PARAM,
-            OpenApiParameter(name="product_type", description="Filter: `SIMPLE`, `CONFIGURABLE`, `BUNDLE`, `CUSTOM`"),
-            OpenApiParameter(name="on_stock", description="Filter: `true` = in-stock only", type=bool),
-        ],
+        parameters=COUNT_PARAMS,
         responses={200: CountResponse},
         tags=["Matrix Products"],
     )
@@ -173,11 +197,12 @@ class ProductCountView(ChannelMixin, APIView):
             skus=request.query_params.getlist("sku") or None,
             product_type=request.query_params.get("product_type"),
             on_stock=parse_bool(request.query_params.get("on_stock")),
+            search=parse_search(request.query_params.get("search")),
             filters=parse_prefix_params(request.query_params, "q_") or None,
             ranges=parse_range_params(request.query_params, "r_") or None,
         )
 
-        response = Response({"count": count, "meta": build_meta(warnings)})
+        response = Response({"count": count, "meta": build_meta(warnings + self.get_param_warnings())})
         ttl = self.get_cache_ttl("products_count")
         if ttl > 0:
             response["Cache-Control"] = f"public, max-age=60, s-maxage={ttl}"
@@ -242,6 +267,11 @@ def parse_sort_params(query_params, prefix: str) -> list[dict]:
     return result
 
 
+def parse_search(value: str | None) -> str | None:
+    """Blank and whitespace-only queries mean 'no search', not `ILIKE '% %'`."""
+    return (value or "").strip() or None
+
+
 def parse_bool(value: str | None) -> bool | None:
     if value is None:
         return None
@@ -254,6 +284,11 @@ def _safe_int(value, default: int) -> int:
         return int(value)
     except (ValueError, TypeError):
         return default
+
+
+def parse_page(value) -> int:
+    """1-based page number. `?page=0` and negatives would produce a negative SQL OFFSET (HTTP 500)."""
+    return max(_safe_int(value, 1), 1)
 
 
 def parse_include(include_str: str) -> set[str]:

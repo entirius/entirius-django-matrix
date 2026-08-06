@@ -332,3 +332,97 @@ def product_with_reviews(channel_full):
         final_net=Decimal("162.60"),
     )
     return pr
+
+
+# ── Search fixtures (33731) ─────────────────────────────────────────
+
+
+@pytest.fixture
+def searchable_channel(channel_full):
+    """Channel where `name` is searchable.
+
+    Without a SearchableFeatures row, get_featuers_restrictions() returns searchable=['sku']
+    only and the repository skips the `pt.name ILIKE` clause entirely — every name query
+    silently matches nothing.
+    """
+    from django_pim.models import Feature, FeatureScopeEnum, FeatureTypeEnum
+
+    from django_matrix.models import SearchableFeatures
+
+    ch, lang, currency, country = channel_full
+    # `name` is a reserved system idx in PIM — scope must be SYSTEM, as it is in real data.
+    feature = Feature.objects.create(
+        idx="name",
+        name_t9n={"en": "Name", "pl": "Nazwa"},
+        feature_type=FeatureTypeEnum.TEXT,
+        scope=FeatureScopeEnum.SYSTEM,
+    )
+    SearchableFeatures.objects.create(channel=ch, feature=feature)
+    return channel_full
+
+
+@pytest.fixture
+def many_sofas(searchable_channel):
+    """5 products named 'Sofa <n>' — enough for total > page_size."""
+    from django_matrix.models import ProductPrice, ProductRepresentation, ProductT9N
+
+    ch, lang, currency, country = searchable_channel
+    products = []
+    for n in range(1, 6):
+        pr = ProductRepresentation.objects.create(
+            sku=f"V2-SOFA-{n:03d}",
+            channel=ch,
+            product_type="SIMPLE",
+            kind_of_product="PHYSICAL",
+            on_stock=True,
+            url_keys={f"sofa-{n}": "en"},
+        )
+        ProductT9N.objects.create(
+            product_representation=pr,
+            language=lang,
+            name=f"Sofa {n}",
+            url_key=f"sofa-{n}",
+        )
+        ProductPrice.objects.create(
+            product_representation=pr,
+            currency=currency,
+            country=country,
+            gross=Decimal("100.00"),
+            net=Decimal("81.30"),
+            final_gross=Decimal("100.00"),
+            final_net=Decimal("81.30"),
+        )
+        products.append(pr)
+    return products
+
+
+@pytest.fixture
+def spy_list_products(monkeypatch):
+    """Capture the kwargs search_service passes down, without touching the DB.
+
+    Relevance direction is a no-op in SQL unless MATRIX_FULL_TEXT_SEARCH is on, so the
+    service-level kwarg is the right place to pin it.
+    """
+    from django_matrix.services import search_service
+
+    captured: dict = {}
+
+    def fake_list_products(**kwargs):
+        captured.update(kwargs)
+        return [], False, []
+
+    monkeypatch.setattr(search_service, "list_products", fake_list_products)
+    return captured
+
+
+@pytest.fixture
+def fts_on(monkeypatch):
+    """Enable full-text search for one test.
+
+    `raw_sql/product.py` does `from django_matrix import settings` and reads the flag as a
+    module attribute at call time, so patching the attribute works. Django's override_settings
+    does NOT — it patches django.conf.settings, which the module already snapshot-read.
+    ?language=pl is safe here: name_en="polish" is not a Postgres text-search configuration, and
+    since 33733 an unknown name falls back to `simple` instead of raising (test_full_text_search).
+    """
+    monkeypatch.setattr("django_matrix.settings.MATRIX_FULL_TEXT_SEARCH", True)

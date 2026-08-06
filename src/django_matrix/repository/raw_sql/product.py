@@ -228,6 +228,16 @@ class Product(DbConnect):
             sql += "AND pr.on_stock = %(on_stock)s "
             sql_params["on_stock"] = params.on_stock
 
+        if params.has_special_price is not None:
+            # pp is LEFT JOINed: a product without a price row for this currency/country
+            # yields NULL, and `NULL = false` is NULL — which would silently drop it from
+            # a `has_special_price=false` listing. No price row means no special price.
+            sql += "AND COALESCE(pp.has_special_price, FALSE) = %(has_special_price)s "
+            sql_params["has_special_price"] = params.has_special_price
+            if params.has_special_price:
+                sql += "AND (pp.special_from_date IS NULL OR pp.special_from_date::timestamp <= NOW()) "
+                sql += "AND (pp.special_to_date IS NULL OR pp.special_to_date::timestamp >= NOW()) "
+
         # Filter by magento_id
         if params.magento_id:
             sql += "AND pr.magento_id IN %(magento_id)s "

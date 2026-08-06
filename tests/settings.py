@@ -24,6 +24,9 @@ INSTALLED_APPS = [
 _optional_apps = [
     "django_regional",
     "django_pim",
+    # 3.3.0 pulled django_pricemanager into the v1 urlconf via services/bundle_service.py.
+    # tests/urls.py imports that urlconf, so the models must have an app registry entry.
+    "django_pricemanager",
 ]
 for _app in _optional_apps:
     try:
