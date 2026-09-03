@@ -55,6 +55,7 @@ All settings are read from Django settings via `getattr(settings, ...)` with the
 |---------|------|---------|-------------|
 | `VISIBILITY_MECHANISM` | `int` | `1` | `1` = use `VisibilityFeatures` table per channel to determine which features are returned. `2` = return all features except those in `BLACKLISTED_FEATURES_IDX_VISIBILITY`. |
 | `BLACKLISTED_FEATURES_IDX_VISIBILITY` | `list[str]` | `[]` | Feature idxs to hide when `VISIBILITY_MECHANISM=2`. Has no effect when mechanism is `1`. |
+| `MATRIX_SORT_ATTRIBUTES_BY_CHANNEL_POSITION` | `bool` | `False` | Order attributes by the per-channel `position` of the visibility feature instead of the global `django_pim_feature.display_order`. Attributes with no row in the visibility table (queries filtered by `only_custom` or `feature_type` skip the visibility gate) have no position and sort last. |
 
 ## Categories
 

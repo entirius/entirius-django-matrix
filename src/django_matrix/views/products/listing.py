@@ -6,6 +6,7 @@ from django_utils.api.decorators import api_view, authenticate_optional, parse_p
 from django_utils.api.responses import PaginatedResponse
 
 from django_matrix.dto.view.product import product_collection
+from django_matrix.repository.orm.product_categories import ProductCategories as ProductCategoriesRepository
 from django_matrix.repository.orm.product_variant_groups import ProductVariantGroups as ProductVariantGroupRepository
 from django_matrix.repository.raw_sql.product import Product as ProductRepository
 from django_matrix.services.attribute_service import fetch_and_attach_attributes
@@ -80,6 +81,12 @@ def products_listing_view(request, params: Query, *args, **kwargs) -> "Paginated
         variant_groups = ProductVariantGroupRepository(channel, language, country, currency).build_for_skus(sku_list)
         for product in products:
             product["product_variants"] = variant_groups.get(product["sku"], [])
+
+    # Categories the products belong to (with breadcrumbs)
+    if params.fetch_categories is True and len(sku_list) > 0:
+        categories = ProductCategoriesRepository(channel, language, country, currency).build_for_skus(sku_list)
+        for product in products:
+            product["categories"] = categories.get(product["sku"], [])
 
     return PaginatedResponse(
         params.pagination(count=len(products), count_pages=count_pages), products, messages=messages

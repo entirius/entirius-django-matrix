@@ -7,7 +7,11 @@ from django_regional.models import Language
 
 from django_matrix.models import Channel
 from django_matrix.repository.raw_sql import DbConnect
-from django_matrix.settings import BLACKLISTED_FEATURES_IDX_VISIBILITY, VISIBILITY_MECHANISM
+from django_matrix.settings import (
+    BLACKLISTED_FEATURES_IDX_VISIBILITY,
+    MATRIX_SORT_ATTRIBUTES_BY_CHANNEL_POSITION,
+    VISIBILITY_MECHANISM,
+)
 from django_matrix.utils.params import AttributeQuery
 
 
@@ -58,7 +62,7 @@ class Attribute(DbConnect):
             f"LEFT JOIN {self.app_name}_{self.product_table_name} AS pr "
             f"ON a.product_id = pr.id "
             f"LEFT JOIN ( "
-            f"SELECT f.idx FROM {visibility_table} vf "
+            f"SELECT f.idx, vf.position FROM {visibility_table} vf "
             f"LEFT JOIN django_pim_feature f ON f.id = vf.feature_id "
             f"WHERE vf.channel_id = %(channel_id)s "
             f") AS vis ON vis.idx = a.feature_idx "
@@ -90,7 +94,10 @@ class Attribute(DbConnect):
                     features = split_list(BLACKLISTED_FEATURES_IDX_VISIBILITY, "feature")
                     sql += f"AND a.feature_idx NOT IN ({self.sep.join(features)}) "
 
-        sql += "ORDER BY f.display_order ASC, a.feature_name_t9n ->> %(language)s ASC "
+        if MATRIX_SORT_ATTRIBUTES_BY_CHANNEL_POSITION:
+            sql += "ORDER BY vis.position ASC, a.feature_name_t9n ->> %(language)s ASC "
+        else:
+            sql += "ORDER BY f.display_order ASC, a.feature_name_t9n ->> %(language)s ASC "
 
         # Main query
         attributes = self.fetch_all(sql, sql_params)
