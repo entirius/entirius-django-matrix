@@ -1,7 +1,21 @@
 [project]
 name = "entirius-django-matrix"
 version = "4.3.0"
-description = "Storefront read model for Django: a denormalized product/catalog projection with faceted search, pricing and stock"
+description = "Storefront read model for Entirius: a denormalized catalog projection with faceted search, prices and stock"
+keywords = ["django", "ecommerce", "entirius", "storefront", "read-model", "catalog", "search"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+]
 authors = [{ name = "Entirius" }]
 maintainers = [
     { name = "Piotr Brzozowski" },
@@ -42,7 +56,11 @@ omnibus      = ["entirius-django-omnibus>=3.0.0"]      # omnibus price lookup, r
 reviews      = ["entirius-django-reviews>=2.0.0"]      # product average-rating fill, returns None when absent
 
 [project.urls]
+Homepage = "https://docs.entirius.com/"
+Documentation = "https://github.com/entirius/entirius-django-matrix/tree/develop/docs"
 Repository = "https://github.com/entirius/entirius-django-matrix"
+Changelog = "https://github.com/entirius/entirius-django-matrix/blob/develop/CHANGELOG.md"
+Issues = "https://github.com/entirius/entirius-django-matrix/issues"
 
 [build-system]
 requires = ["hatchling"]
