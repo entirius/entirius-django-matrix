@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- Optional sibling apps that are installed but not enabled no longer crash imports (`RuntimeError` is caught like
+  `ImportError`).
+
 ## 4.3.0 — 2026-08-06
 
 - Ranged bundle pricing and product variant groups.

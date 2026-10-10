@@ -17,6 +17,7 @@ def get_stock_for_skus(skus: list[str], channel_idx: str) -> dict[str, dict]:
 
 def _get_quantities(skus: list[str], channel_idx: str) -> dict[str, int]:
     """Try checkout Stock first, then QMS. Return empty if neither available."""
+    # RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
     try:
         from django_checkout.models import Stock
 
@@ -27,14 +28,14 @@ def _get_quantities(skus: list[str], channel_idx: str) -> dict[str, int]:
         for row in stock_data:
             quantities[row["product__sku"]] = row["saleable_quantity"]
         return quantities
-    except ImportError:
+    except (ImportError, RuntimeError):
         pass
 
     try:
         from django_qms.output import get_quantities
 
         return dict(get_quantities(channel_idx).filter(product__sku__in=skus))
-    except ImportError:
+    except (ImportError, RuntimeError):
         pass
 
     return {}

@@ -8,11 +8,12 @@ from process_logger import ProcessLogger, ProcessLoggerMixin
 
 from django_matrix.models import Channel, ProductRepresentation
 
+# RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
 try:
     from django_qms.output import get_product_quantity, get_quantities
 
     _HAS_QMS = True
-except ImportError:
+except (ImportError, RuntimeError):
     _HAS_QMS = False
 
 BULK_BATCH_SIZE = 1000
@@ -148,7 +149,7 @@ class FillReadModelOnStock(ProcessLoggerMixin):
             from django_checkout.models import Stock
 
             process_checkout = True
-        except ImportError:
+        except (ImportError, RuntimeError):
             # If we don't have django_checkout, ex. Catalog shop - we can import from QMS directly
             process_checkout = False
 
