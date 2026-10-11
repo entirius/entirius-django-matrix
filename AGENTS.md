@@ -77,3 +77,12 @@ Key toggles: `MATRIX_PRODUCTS_PARALLEL_QUERIES`, `MATRIX_FULL_TEXT_SEARCH`, `MAT
 (+ `_THRESHOLD`), `MATRIX_ENABLE_REALTIME_STOCK_UPDATE`, `USE_PRICE_TUNER_IN_MATRIX`,
 `USE_CACHED_VIEWS` (+ `CACHE_TTL`), `PRICE_TYPE`/`PRICE_DECIMAL_PLACES`, pagination knobs,
 `API_BASE_URL`, `VISIBILITY_MECHANISM`.
+
+## Gotchas
+
+- The public v2 views (products, count, options, search, categories, stock, omnibus) declare
+  `authentication_classes = []` and `AllowAny`: credentials are ignored there, whatever the service's DRF defaults.
+  A new public view declares the same; `prices/` is the one JWT view.
+- Most optional sibling imports catch `(ImportError, RuntimeError)` (`RuntimeError`: installed but not in
+  `INSTALLED_APPS`); the omnibus import of `repository/orm/prices.py`, `dto/view/price.py` and
+  `signals/receivers.py` still catch `ImportError` only.

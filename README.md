@@ -14,7 +14,8 @@ it to the storefront over a versioned REST API with faceted, full-text and trigr
 - Serves product listings, product details, categories, options, prices and stock to the storefront.
 - Searches the catalog with facets, PostgreSQL full-text search and optional trigram (fuzzy) matching.
 - Fills the read model from the product, pricing and stock modules with worker jobs and management commands.
-- Degrades gracefully when an optional source module (stock, prices, omnibus prices, reviews) is not installed.
+- Degrades gracefully when an optional source module (stock, prices, omnibus prices, reviews) is not installed;
+  stock, prices and reviews also when the module is installed but not enabled.
 
 ## Installation
 
