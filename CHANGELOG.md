@@ -5,6 +5,13 @@
 - Optional sibling apps that are installed but not enabled no longer crash imports (`RuntimeError` is caught like
   `ImportError`).
 
+### Security
+
+- The public v2 views (products, count, options, search, categories, stock, omnibus) declare
+  `authentication_classes = []` and `AllowAny`. They declared none, so a service that leaves DRF's defaults (session
+  and Basic) evaluated `Authorization: Basic` on them: the answer differed for a right and a wrong password, outside
+  any login throttle. Credentials are now ignored there; `prices/` keeps JWT.
+
 ## 4.3.0 — 2026-08-06
 
 - Ranged bundle pricing and product variant groups.

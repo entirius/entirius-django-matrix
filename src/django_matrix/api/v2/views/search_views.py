@@ -5,6 +5,7 @@
 """Search v2 — unified search with scope param."""
 
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -44,6 +45,9 @@ SEARCH_PARAMS = [
 
 
 class SearchView(ChannelMixin, APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
     known_params = known_query_params(SEARCH_PARAMS)
 
     @extend_schema(
