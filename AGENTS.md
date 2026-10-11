@@ -11,6 +11,8 @@ Storefront read model — distribution `entirius-django-matrix`, Django app `dja
 | `make fix` | auto-fix lint + format |
 | `make test` | test suite (pytest + pytest-django) |
 
+Tests need PostgreSQL: set `DATABASE_URL` (the default in `tests/settings.py` points at a local postgres).
+
 ## Conventions
 
 - English only: code, docs, commits, branches, PRs.
@@ -22,7 +24,7 @@ Storefront read model — distribution `entirius-django-matrix`, Django app `dja
 - PostgreSQL only: models use GIN indexes, full-text and trigram search — `django.contrib.postgres` in `INSTALLED_APPS`.
 - Default: do not commit — git is the user's call.
 
-## Commit Message Format
+### Commit Message Format
 
 **NEVER add `Co-Authored-By: Claude ...` (or any other Claude/Anthropic attribution) to commit messages.**
 
@@ -35,18 +37,18 @@ Same rule applies to PR descriptions: no `Generated with [Claude Code]` footer.
 Denormalized read model of the product catalog for storefront reads.
 
 - **Models** (`models/`): `Channel` (FK `django_regional` Language/Currency/Country + M2M),
-  `ProductRepresentation` (per-channel product projection, self-FK `parent`), `ProductT9n`
+  `ProductRepresentation` (per-channel product projection, self-FK `parent`), `ProductT9N`
   (translations), `ProductPrice`, `Attribute` (hashed, unique per product), `MatrixSettings`, and
   channel feature through-models (visibility/filterable/sortable/searchable/full-data, FK
   `django_pim.Feature`).
-- **API** (`api/`, versioned `v1`/`v2`): DRF views + drf-spectacular schema; product listing,
+- **API** (v1 in `views/` + `urls.py`, v2 in `api/v2/`): DRF views + drf-spectacular schema; product listing,
   options, categories, search, stock, prices. v2 prices require JWT (per-customer pricing).
 - **Repository** (`repository/`): ORM and raw-SQL query builders (full-text, trigram, faceting).
 - **Workers** (`workers/`): fill the read model from PIM, pricing and stock; celery tasks.
 - **Signals** (`signals/`): real-time stock update from a `django_checkout` signal (guarded).
-- **BI** (`bi.py`): `bievents` events.
+- **BI**: management commands are wrapped with the `bievents` command decorator.
 
-## Integration points
+### Integration points
 
 - `entirius-django-pim` (**required**) — product/feature source; FK `Feature`, worker reads.
 - `entirius-django-regional` (**required**) — Country/Currency/Language FKs on `Channel`.
@@ -59,10 +61,19 @@ Denormalized read model of the product catalog for storefront reads.
 - `entirius-django-omnibus` (extra `omnibus`) — omnibus price lookup (soft, `None` when absent).
 - `entirius-django-reviews` (extra `reviews`) — product average-rating fill (soft, `None` when absent).
 
-## Settings Reference
+| Topic | Where |
+|---|---|
+| Settings with defaults | `docs/configuration.md` |
+| API v2 | `docs/api-v2.md` |
+| Management commands | `docs/commands.md` |
+| Bundle configuration | `docs/bundle-config.md` |
+| Log codes | `docs/log-codes.md` |
+| ERD config for the docs ERD generator | `docs/erd-config.yaml`, `docs/erd.md` |
 
-All read via `getattr(settings, ...)` with defaults (see `settings.py`); no fail-fast settings.
+## Settings
+
+All read via `getattr(settings, ...)` with defaults (see `settings.py`, reference in `docs/configuration.md`); no fail-fast settings.
 Key toggles: `MATRIX_PRODUCTS_PARALLEL_QUERIES`, `MATRIX_FULL_TEXT_SEARCH`, `MATRIX_FUZZY_SEARCH`
 (+ `_THRESHOLD`), `MATRIX_ENABLE_REALTIME_STOCK_UPDATE`, `USE_PRICE_TUNER_IN_MATRIX`,
 `USE_CACHED_VIEWS` (+ `CACHE_TTL`), `PRICE_TYPE`/`PRICE_DECIMAL_PLACES`, pagination knobs,
-`API_BASE_URL`, `VISIBILITY_MECHANISM`. `bi.py` reads `BI_ENVIRONMENT` / `BI_BUSINESS_UNIT` at import.
+`API_BASE_URL`, `VISIBILITY_MECHANISM`.
