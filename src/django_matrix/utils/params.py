@@ -127,6 +127,7 @@ class PriceQuery(BaseQuery):
 @dataclass
 class BundleQuery(BaseQuery):
     sku: list[str] | None = None
+    fetch_attributes: bool | None = None
     Schema: ClassVar[type[Schema]] = Schema
 
 
@@ -142,9 +143,11 @@ class Query(BaseQuery):
     sort: list[dict] | None = None
     type: str | None = None
     on_stock: bool | None = None
+    has_special_price: bool | None = None
     magento_id: list[str] | None = None
     fetch_attributes: bool | None = None
     fetch_full_data: bool | None = None
+    fetch_variant_groups: bool | None = None
     search_window: bool | None = None
     Schema: ClassVar[builtins.type[Schema]] = Schema
 
@@ -184,6 +187,7 @@ class Query(BaseQuery):
 @dataclass
 class DetailsQuery(SimpleQuery):
     fetch_attributes: bool | None = None
+    fetch_variant_groups: bool | None = None
     Schema: ClassVar[type[Schema]] = Schema
 
 
@@ -287,6 +291,7 @@ class AttributeCustomListingQuery(AttributeCustomQuery):
 class VariantsQuery(SimpleQuery):
     url_key: str = ""
     on_stock: bool | None = None
+    has_special_price: bool | None = None
     Schema: ClassVar[type[Schema]] = Schema
 
 

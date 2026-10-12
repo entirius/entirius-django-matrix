@@ -1,86 +1,96 @@
-# Log Codes
+---
+title: Log Codes
+description: Error, warning, info, debug, and API log codes emitted by django-matrix during read model builds and API requests.
+---
 
-| Process                                               | Level | Code | Description                                                            |
-|-------------------------------------------------------|-------|------|------------------------------------------------------------------------|
-| Fill read model - products and attributes             | Error | 4001 | Error while matching simple to config and saving ProductRepresentation |
-| Fill read model - products and attributes             | Error | 4002 | Error while creating ProductRepresentation                             |
-| Fill read model - products and attributes             | Error | 4003 | Error while updating existing ProductRepresentation                    |
-| Fill read model - products and attributes             | Error | 4004 | Error while creating ProductT9N                                        |
-| Fill read model - products and attributes             | Error | 4005 | Error while updating existing ProductT9N                               |
-| Fill read model - products and attributes             | Error | 4006 | Error while creating Attribute                                         |
-| Fill read model - products and attributes             | Error | 4007 | Error while gathering readmodel data                                   |
-| Fill read model - fill read model prices              | Error | 4008 | Error while creating ProductPrice                                      |
-| Fill read model - fill read model prices              | Error | 4009 | Error while updating existing ProductRepresentation                    |
-| Fill read model - fill read model prices              | Error | 4010 | Error while creating ProductPrice for product parent                   |
-| Fill read model - fill read model prices              | Error | 4011 | Error while updating existing ProductRepresentation for product parent |
-| Fill read model - fill read model prices              | Error | 4012 | Error when trying to ProductPrice data                                 |
-| Fill read model - fill read model pictures and thumbs | Error | 4013 | Error while saving picture for product                                 |
-| Fill read model - fill read model pictures and thumbs | Error | 4014 | General error for creating/updating pictures in ProductRepresentation  |
-| Fill read model - fill read model pictures and thumbs | Error | 4015 | Error while removing product pictures to keep them up to date.         |
-| Fill read model - fill read model on stock            | Error | 4016 | Error while updating on_stock for existing ProductRepresentation       |
-| Fill read model - products and attributes             | Error | 4017 | Error while gathering attributes                                       |
-| Fill read model - fill read model on stock            | Error | 4018 | Error while gathering quantities                                       |
-| Fill read model - fill read model pictures and thumbs | Error | 4019 | Error while gathering ProductT9N for sku and language to save picture  |
-| Fill read model - fill read model videos              | Error | 4020 | Error while saving videos for product                                  |
-| Fill read model - fill read model videos              | Error | 4021 | General error for creating/updating videos in ProductRepresentation    |
-| Fill read model - fill read model videos              | Error | 4022 | Error while removing product videos to keep them up to date.           |
-| Fill read model - fill read model videos              | Error | 4023 | Error while gathering ProductT9N for sku and language to save videos   |
-| Fill read model - fill read model prices              | Error | 4024 | General error for while creating/calculating product ProductPrice      |
-| Fill read model - fill read model prices              | Error | 4025 | Min/max offer price cannot be imported bcs of Import ERROR/Exception   |
-| Fill read model - products and attributes             | Error | 4026 | Language doesn't exists in django_regional                             |
-| Fill read model - fill read model on stock            | Error | 4027 | There is no subproduct Stock in checkout table                         |
-| Fill read model - fill read model on stock            | Error | 4028 | Error fetching quantities from source Checkout/QMS                     |
-| Fill read model - products representations            | Error | 4029 | Bulk create updated failed                                             |
-| Fill read model - products t9n                        | Error | 4030 | Bulk create updated failed                                             |
-| Fill read model - attributes                          | Error | 4031 | Bulk create updated failed                                             |
-| Fill read model - products representations            | Error | 4032 | Too many products representations to delete. Operation stopped.        |
-| Fill read model - products t9n                        | Error | 4033 | Too many products t9n to delete. Operation stopped.                    |
-| Fill read model - attributes                          | Error | 4034 | Too many attributes to delete. Operation stopped.                      |
+Log codes are emitted via `ProcessLogger` during read model fill workers and via the standard logger during API requests.
 
-| Process                                   | Level   | Code | Description                                              |
-|-------------------------------------------|---------|------|----------------------------------------------------------|
-| Fill read model - products and attributes | Warning | 3001 | Can't find ProductRepresentation to assign to ProductT9n |
-| Fill read model - products and attributes | Warning | 3002 | Can't find ProductRepresentation to assign to Attribute  |
+## Errors (4xxx)
 
+| Code | Process | Description |
+|------|---------|-------------|
+| 4001 | Fill — products and attributes | Error matching a simple product to its configurable parent and saving ProductRepresentation |
+| 4002 | Fill — products and attributes | Error creating ProductRepresentation |
+| 4003 | Fill — products and attributes | Error updating an existing ProductRepresentation |
+| 4004 | Fill — products and attributes | Error creating ProductT9N |
+| 4005 | Fill — products and attributes | Error updating an existing ProductT9N |
+| 4006 | Fill — products and attributes | Error creating Attribute |
+| 4007 | Fill — products and attributes | Error gathering read model data |
+| 4008 | Fill — prices | Error creating ProductPrice |
+| 4009 | Fill — prices | Error updating an existing ProductRepresentation (price step) |
+| 4010 | Fill — prices | Error creating ProductPrice for a product parent |
+| 4011 | Fill — prices | Error updating an existing ProductRepresentation for a product parent |
+| 4012 | Fill — prices | Error retrieving ProductPrice data |
+| 4013 | Fill — pictures | Error saving a picture for a product |
+| 4014 | Fill — pictures | General error creating or updating pictures in ProductRepresentation |
+| 4015 | Fill — pictures | Error removing outdated product pictures |
+| 4016 | Fill — stock | Error updating `on_stock` for an existing ProductRepresentation |
+| 4017 | Fill — products and attributes | Error gathering attributes |
+| 4018 | Fill — stock | Error gathering quantities from source (Checkout/QMS) |
+| 4019 | Fill — pictures | Error retrieving ProductT9N for SKU and language when saving a picture |
+| 4020 | Fill — videos | Error saving videos for a product |
+| 4021 | Fill — videos | General error creating or updating videos in ProductRepresentation |
+| 4022 | Fill — videos | Error removing outdated product videos |
+| 4023 | Fill — videos | Error retrieving ProductT9N for SKU and language when saving videos |
+| 4024 | Fill — prices | General error creating or calculating ProductPrice |
+| 4025 | Fill — prices | Min/max offer price cannot be imported due to an error or exception |
+| 4026 | Fill — products and attributes | Language does not exist in django-regional |
+| 4027 | Fill — stock | No sub-product stock record found in checkout table |
+| 4028 | Fill — stock | Error fetching quantities from Checkout or QMS |
+| 4029 | Fill — product representations | Bulk create/update failed |
+| 4030 | Fill — product t9n | Bulk create/update failed |
+| 4031 | Fill — attributes | Bulk create/update failed |
+| 4032 | Fill — product representations | Too many ProductRepresentation rows would be deleted. Operation stopped. See `DELETE_WHEN_IMPORT_OLD_DATA_SAFETY_FACTOR`. |
+| 4033 | Fill — product t9n | Too many ProductT9N rows would be deleted. Operation stopped. |
+| 4034 | Fill — attributes | Too many Attribute rows would be deleted. Operation stopped. |
 
-| Process                                               | Level | Code | Description                                                                                                         |
-|-------------------------------------------------------|-------|------|---------------------------------------------------------------------------------------------------------------------|
-| Fill read model - products and attributes             | Info  | 2001 | Product has been skipped because it is disabled.                                                                    |
-| Fill read model - products and attributes             | Info  | 2002 | ProductRepresentation has been created/updated.                                                                     |
-| Fill read model - products and attributes             | Info  | 2003 | All previous ProductRepresentation have been deleted.                                                               |
-| Fill read model - products and attributes             | Info  | 2004 | ProductT9N has been created/updated.                                                                                |
-| Fill read model - products and attributes             | Info  | 2005 | All previous ProductT9n correlated have been deleted.                                                               |
-| Fill read model - products and attributes             | Info  | 2006 | All previous attribute correlated with product sku have been deleted. Next the up-to-date attributes will be added. |
-| Fill read model - products and attributes             | Info  | 2007 | Attribute skipped. This attribute has likely been saved in ProductT9N                                               |
-| Fill read model - products and attributes             | Info  | 2008 | Attribute created/updated for product.                                                                              |
-| Fill read model - products and attributes             | Info  | 2018 | Attribute skipped. This product attribute has empty value.                                                          |
-| Fill read model - products and attributes             | Info  | 2027 | Attribute skipped. Product feature set not matching feature features sets                                           |
-| Fill read model - fill read model prices              | Info  | 2009 | ProductPrice saved/updated for product.                                                                             |
-| Fill read model - fill read model prices              | Info  | 2010 | ProductPrice created for product.                                                                                   |
-| Fill read model - fill read model prices              | Info  | 2011 | ProductPrice saved/updated for product parent.                                                                      |
-| Fill read model - fill read model prices              | Info  | 2012 | ProductPrice created for product parent.                                                                            |
-| Fill read model - fill read model prices              | Info  | 2013 | Price skipped. There is no sku product in ProductRepresentation.                                                    |
-| Fill read model - fill read model on stock            | Info  | 2014 | On_stock updated.                                                                                                   |
-| Fill read model - fill read model on stock            | Info  | 2015 | Stock skipped. There is no sku product in ProductRepresentation.                                                    |
-| Fill read model - fill read model pictures and thumbs | Info  | 2016 | ProductRepresentation sku pictures saved/updated.                                                                   |
-| Fill read model - fill read model pictures and thumbs | Info  | 2017 | Remove product pictures to keep them up to date.                                                                    |
-| Fill read model - fill read model pictures and thumbs | Info  | 2018 | ProductRepresentation sku pictures t9n saved/updated.                                                               |
-| Fill read model - fill read model pictures and thumbs | Info  | 2019 | Remove product pictures t9n to keep them up to date.                                                                |
-| Fill read model - fill read model videos              | Info  | 2020 | ProductRepresentation sku videos saved/updated.                                                                     |
-| Fill read model - fill read model videos              | Info  | 2021 | Remove product videos to keep them up to date.                                                                      |
-| Fill read model - fill read model videos              | Info  | 2022 | ProductRepresentation sku videos t9n saved/updated.                                                                 |
-| Fill read model - fill read model videos              | Info  | 2023 | Remove product videos t9n to keep them up to date.                                                                  |
-| Fill read model - products and attributes             | Info  | 2024 | ProductRepresentation has been added to save queue.                                                                 |
-| Fill read model - products and attributes             | Info  | 2025 | ProductT9N has been added to save queue.                                                                            |
-| Fill read model - products and attributes             | Info  | 2026 | Attribute has been added to save queue.                                                                             |
+## Warnings (3xxx)
 
+| Code | Process | Description |
+|------|---------|-------------|
+| 3001 | Fill — products and attributes | Cannot find a ProductRepresentation to assign to a ProductT9N |
+| 3002 | Fill — products and attributes | Cannot find a ProductRepresentation to assign to an Attribute |
 
-| Process | Level | Code | Description |
-|---------|-------|------|-------------|
-|         | Debug | 1001 |             |
+## Info (2xxx)
 
-# API Log Codes
-| Process                                               | Level | Code | Description                                                            |
-|-------------------------------------------------------|-------|------|------------------------------------------------------------------------|
-| API - product_urls_view                               | Error | 4501 | Language doesn't exists in django_regional                             |
+| Code | Process | Description |
+|------|---------|-------------|
+| 2001 | Fill — products and attributes | Product skipped — disabled in PIM |
+| 2002 | Fill — products and attributes | ProductRepresentation created or updated |
+| 2003 | Fill — products and attributes | All previous ProductRepresentation rows deleted |
+| 2004 | Fill — products and attributes | ProductT9N created or updated |
+| 2005 | Fill — products and attributes | All previous ProductT9N rows for this product deleted |
+| 2006 | Fill — products and attributes | All previous Attribute rows for this SKU deleted before re-adding |
+| 2007 | Fill — products and attributes | Attribute skipped — already saved in ProductT9N |
+| 2008 | Fill — products and attributes | Attribute created or updated for product |
+| 2009 | Fill — prices | ProductPrice saved or updated |
+| 2010 | Fill — prices | ProductPrice created |
+| 2011 | Fill — prices | ProductPrice saved or updated for parent product |
+| 2012 | Fill — prices | ProductPrice created for parent product |
+| 2013 | Fill — prices | Price skipped — no ProductRepresentation for this SKU |
+| 2014 | Fill — stock | `on_stock` updated |
+| 2015 | Fill — stock | Stock skipped — no ProductRepresentation for this SKU |
+| 2016 | Fill — pictures | ProductRepresentation pictures saved or updated |
+| 2017 | Fill — pictures | Outdated product pictures removed |
+| 2018 | Fill — pictures | ProductT9N pictures saved or updated (also used for attribute-skipped info) |
+| 2019 | Fill — pictures | Outdated ProductT9N pictures removed |
+| 2020 | Fill — videos | ProductRepresentation videos saved or updated |
+| 2021 | Fill — videos | Outdated product videos removed |
+| 2022 | Fill — videos | ProductT9N videos saved or updated |
+| 2023 | Fill — videos | Outdated ProductT9N videos removed |
+| 2024 | Fill — products and attributes | ProductRepresentation added to save queue |
+| 2025 | Fill — products and attributes | ProductT9N added to save queue |
+| 2026 | Fill — products and attributes | Attribute added to save queue |
+| 2027 | Fill — products and attributes | Attribute skipped — product feature set does not match required feature sets |
 
+## Debug (1xxx)
+
+| Code | Process | Description |
+|------|---------|-------------|
+| 1001 | — | Debug placeholder (no description) |
+
+## API Codes (45xx)
+
+| Code | Process | Description |
+|------|---------|-------------|
+| 4501 | API — `product_urls_view` | Language does not exist in django-regional |

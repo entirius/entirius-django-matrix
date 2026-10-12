@@ -24,6 +24,11 @@ INSTALLED_APPS = [
 _optional_apps = [
     "django_regional",
     "django_pim",
+    # 3.3.0 pulled django_pricemanager into the v1 urlconf via services/bundle_service.py.
+    # tests/urls.py imports that urlconf, so the models must have an app registry entry.
+    "django_pricemanager",
+    # workers/fill_read_model_on_stock.py reads django_qms.output; _HAS_QMS is True only when the app is enabled.
+    "django_qms",
 ]
 for _app in _optional_apps:
     try:

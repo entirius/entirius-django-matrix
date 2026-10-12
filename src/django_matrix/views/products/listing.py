@@ -5,12 +5,12 @@
 from django_utils.api.decorators import api_view, authenticate_optional, parse_parameters, require_http_method
 from django_utils.api.responses import PaginatedResponse
 
-from django_matrix.dto.view.attribute import attribute_collection
 from django_matrix.dto.view.product import product_collection
-from django_matrix.repository.raw_sql.attribute import Attribute as AttributeRepository
+from django_matrix.repository.orm.product_variant_groups import ProductVariantGroups as ProductVariantGroupRepository
 from django_matrix.repository.raw_sql.product import Product as ProductRepository
+from django_matrix.services.attribute_service import fetch_and_attach_attributes
 from django_matrix.utils.decorators import prepare_view
-from django_matrix.utils.params import AttributeQuery, Query, get_view_variable_from_kwargs
+from django_matrix.utils.params import Query, get_view_variable_from_kwargs
 
 
 @api_view
@@ -69,18 +69,17 @@ def products_listing_view(request, params: Query, *args, **kwargs) -> "Paginated
 
     # Attributes
     if should_fetch_attributes and len(sku_list) > 0:
-        attr_params = AttributeQuery(sku=sku_list)
-        attributes_result, attr_msg = AttributeRepository().find_by_api_query(
-            params=attr_params, channel=channel, language=language, use_full_data_features=should_fetch_full_data
+        messages += fetch_and_attach_attributes(
+            products,
+            channel=channel,
+            language=language,
+            use_full_data_features=should_fetch_full_data,
         )
 
-        messages += attr_msg
-
-        attributes = attribute_collection(attributes_result, asdict=True, language_iso2=language.iso2)
-
+    if params.fetch_variant_groups is True and len(sku_list) > 0:
+        variant_groups = ProductVariantGroupRepository(channel, language, country, currency).build_for_skus(sku_list)
         for product in products:
-            if product["sku"] in attributes:
-                product["attributes"] = attributes[product["sku"]]
+            product["product_variants"] = variant_groups.get(product["sku"], [])
 
     return PaginatedResponse(
         params.pagination(count=len(products), count_pages=count_pages), products, messages=messages

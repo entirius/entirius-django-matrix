@@ -25,9 +25,10 @@ class CustomDetails:
 
         from django_pim.models import FeatureType, ProductAttribute
 
+        # RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
         try:
             from django_pricemanager.output_custom import get_product_custom_price_for_country_and_currency
-        except ImportError:
+        except (ImportError, RuntimeError):
             raise Exception("Custom product pricing requires django_pricemanager")
 
         # find product custom

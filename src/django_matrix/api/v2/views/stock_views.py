@@ -6,6 +6,7 @@
 
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import serializers
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -14,6 +15,9 @@ from django_matrix.services import stock_service
 
 
 class StockView(ChannelMixin, APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
     @extend_schema(
         summary="Real-time stock",
         description=(

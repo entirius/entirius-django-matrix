@@ -20,3 +20,7 @@ class WarningCode:
     FILTER_NOT_FILTERABLE = "filter.not_filterable"
     FILTER_UNSUPPORTED_TYPE = "filter.unsupported_type"
     FILTER_INVALID = "filter.invalid"
+
+    # Request level (view layer) — a query param the endpoint does not read at all
+    PARAM_UNKNOWN = "param.unknown"
+    PARAM_UNKNOWN_TRUNCATED = "param.unknown_truncated"

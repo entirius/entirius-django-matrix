@@ -167,6 +167,32 @@ class Prices(ProcessLoggerMixin):
             "omnibus_price": omnibus_price,
         }
 
+    def _with_unrounded_amounts(self, price_dict: dict, price_obj: Price) -> dict:
+        """Restore the raw, unquantized amounts on a single bundle component.
+
+        Component rows are summed by the storefront to show the bundle total, and that
+        total has to match the bundle's own listing price — which is aggregated from raw
+        component values and quantized once (see services/bundle_service). Quantizing
+        each component first with ROUND_UP makes the sum drift upward by up to one minor
+        unit per component, so the configurator would advertise more than the PDP.
+
+        Only the summable amounts are restored; tax rate, badge and dates stay as
+        `price_data` computed them, including its special-price eligibility rules.
+        """
+        if settings.PRICE_TYPE == "NET":
+            primary, opposite = price_obj.net_value, price_obj.gross_value
+            primary_special, opposite_special = price_obj.special_net_value, price_obj.special_gross_value
+        else:
+            primary, opposite = price_obj.gross_value, price_obj.net_value
+            primary_special, opposite_special = price_obj.special_gross_value, price_obj.special_net_value
+
+        price_dict["price"] = Decimal(primary)
+        price_dict["price_tax_config_opposite"] = Decimal(opposite)
+        if price_dict["special_price"] is not None:
+            price_dict["special_price"] = Decimal(primary_special)
+            price_dict["special_price_tax_config_opposite"] = Decimal(opposite_special)
+        return price_dict
+
     def get_product_bundle_components_price(
         self,
         country_code: str,
@@ -176,9 +202,10 @@ class Prices(ProcessLoggerMixin):
         uid: str | None = None,
         is_customer_verified: bool = False,
     ):
+        # RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
         try:
             from django_pricemanager.output_bundle import get_product_bundle_components_price
-        except ImportError:
+        except (ImportError, RuntimeError):
             return [], ""
 
         # Ceny składowe bundla nie obsługują cen przedziałowych (range price will always be null)
@@ -188,4 +215,4 @@ class Prices(ProcessLoggerMixin):
         if is_only_for_verified_user is True and is_customer_verified is False:
             return [], "Your are not verified customer and query may be limited"
 
-        return [self.price_as_dict(price, currency_code) for price in prices], ""
+        return [self._with_unrounded_amounts(self.price_as_dict(price, currency_code), price) for price in prices], ""

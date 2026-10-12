@@ -7,6 +7,7 @@
 from django.conf import settings
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -17,6 +18,9 @@ DEFAULT_MAX_URL_KEYS = 50
 
 
 class CategoriesView(ChannelMixin, APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
     @extend_schema(
         summary="Category tree, lazy subtree, or batch single",
         description=(
