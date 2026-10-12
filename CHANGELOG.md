@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- The product listing no longer leaks database connections. `execute_parallel_queries` runs the list and its COUNT in
+  two pool threads; Django keeps a connection per thread and closes it when a request ends, which never happens in a
+  pool thread, so every listing left two idle connections until garbage collection. Under load Postgres refused new
+  clients ("too many clients already") and every API call answered 500. Each pool thread now closes its own
+  connection.
+
 ## 4.4.0 — 2026-10-12
 
 - Optional sibling apps that are installed but not enabled no longer crash imports (`RuntimeError` is caught like

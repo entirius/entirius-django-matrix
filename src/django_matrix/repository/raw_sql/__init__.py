@@ -71,25 +71,33 @@ class DbConnect:
         Wykonuje równolegle główne zapytanie i zapytanie COUNT dla lepszej wydajności
         """
 
-        def execute_main_query():
-            from django.db import connections
+        from django.db import connections
 
-            conn = connections["default"]
-            with conn.cursor() as cursor:
+        def in_own_connection(query):
+            # A pool thread gets its own connection (Django keeps them per thread) and no request ends in it
+            # to close it: every listing left two idle connections until garbage collection, and under load
+            # Postgres ran out of clients ("too many clients already" → 500).
+            def run():
+                try:
+                    return query()
+                finally:
+                    connections.close_all()
+
+            return run
+
+        def execute_main_query():
+            with connections["default"].cursor() as cursor:
                 cursor.execute(main_sql, main_params)
                 return self.dict_fetch_all(cursor)
 
         def execute_count_query():
-            from django.db import connections
-
-            conn = connections["default"]
-            with conn.cursor() as cursor:
+            with connections["default"].cursor() as cursor:
                 cursor.execute(count_sql, count_params)
                 return cursor.fetchone()[0]
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            main_future = executor.submit(execute_main_query)
-            count_future = executor.submit(execute_count_query)
+            main_future = executor.submit(in_own_connection(execute_main_query))
+            count_future = executor.submit(in_own_connection(execute_count_query))
 
             try:
                 main_results = main_future.result(timeout=30)  # 30s timeout
