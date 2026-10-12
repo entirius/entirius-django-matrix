@@ -49,12 +49,13 @@ def substring(text: str | None, max_chars: int = 1024):
 
 
 def import_reviews_for_product(sku):
+    # RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
     try:
         from django_reviews.models import ProductRepresentation as PRReviews
 
         pr_review = PRReviews.objects.get(sku=sku)
         return pr_review.average_rate, pr_review.number_of_reviews
-    except ImportError:
+    except (ImportError, RuntimeError):
         return None, None
     except ObjectDoesNotExist:
         return None, None
@@ -142,7 +143,7 @@ def fill_read_model_products_and_attributes(channel: Channel, product_class: int
             if sku not in pr_reviews_cache:
                 pr_reviews_cache[sku] = pr_review
         del pr_reviews
-    except ImportError:
+    except (ImportError, RuntimeError):
         pass
 
     # Categories cache

@@ -24,12 +24,17 @@ def _get_stock_quantities(channel, sub_skus: list[str]) -> dict:
     saleable_quantity_limit (buffer) and saleable_quantity_limit_per_order. Same
     source the fill_read_model_on_stock worker uses for matrix's denormalized stock.
 
-    SKUs without a Stock record default to 0 (treat as out of stock).
+    SKUs without a Stock record default to 0 (treat as out of stock). Empty dict when
+    django_checkout is not available.
     """
     if not sub_skus:
         return {}
 
-    from django_checkout.models import Stock
+    # RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
+    try:
+        from django_checkout.models import Stock
+    except (ImportError, RuntimeError):
+        return {}
 
     rows = Stock.annotated.filter(product__channel__idx=channel.idx, product__sku__in=sub_skus).values_list(
         "product__sku", "saleable_quantity"

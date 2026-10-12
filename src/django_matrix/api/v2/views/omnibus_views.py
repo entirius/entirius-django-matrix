@@ -5,6 +5,7 @@
 """Omnibus v2 — lowest price in last 30 days (EU Directive 2019/2161)."""
 
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -13,6 +14,9 @@ from django_matrix.services import omnibus_service
 
 
 class OmnibusView(ChannelMixin, APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
     @extend_schema(
         summary="Omnibus prices (30-day lowest)",
         description="EU Directive 2019/2161 compliance. Batch SKU lookup. Public, cached.",
