@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 4.4.0 — 2026-10-12
 
 - Optional sibling apps that are installed but not enabled no longer crash imports (`RuntimeError` is caught like
   `ImportError`).
