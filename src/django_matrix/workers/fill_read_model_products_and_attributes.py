@@ -7,6 +7,7 @@ import logging
 from collections import defaultdict
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 from django.utils import timezone
 from django_regional.models import Language
 from process_logger import ProcessLogger
@@ -46,6 +47,11 @@ def substring(text: str | None, max_chars: int = 1024):
         else:
             return text
     return text
+
+
+def stale_rows(updated_at) -> Q:
+    """Rows an earlier run stamped, or never stamped. A row with a newer stamp belongs to a later run and stays."""
+    return Q(updated_at__lt=updated_at) | Q(updated_at__isnull=True)
 
 
 def import_reviews_for_product(sku):
@@ -595,7 +601,7 @@ def fill_read_model_products_and_attributes(channel: Channel, product_class: int
     attr = Attribute.objects.filter(
         product__channel=channel, product__product_type=ProductType.map(product_class), **query
     )
-    attr_excluded = attr.exclude(updated_at=updated_at)
+    attr_excluded = attr.filter(stale_rows(updated_at))
     if (
         attr_excluded.count() > DELETE_WHEN_IMPORT_OLD_DATA_SAFETY_FACTOR * attr.count() and attr.count() > 1
     ) or stop_del_attr:
@@ -619,7 +625,7 @@ def fill_read_model_products_and_attributes(channel: Channel, product_class: int
         product_representation__product_type=ProductType.map(product_class),
         **query,
     )
-    product_t9n_excluded = product_t9n.exclude(updated_at=updated_at)
+    product_t9n_excluded = product_t9n.filter(stale_rows(updated_at))
 
     if (
         product_t9n_excluded.count() > DELETE_WHEN_IMPORT_OLD_DATA_SAFETY_FACTOR * product_t9n.count()
@@ -643,7 +649,7 @@ def fill_read_model_products_and_attributes(channel: Channel, product_class: int
     product_representation = ProductRepresentation.objects.filter(
         channel=channel, product_type=ProductType.map(product_class), **query
     )
-    product_representation_excluded = product_representation.exclude(updated_at=updated_at)
+    product_representation_excluded = product_representation.filter(stale_rows(updated_at))
     if (
         product_representation_excluded.count()
         > DELETE_WHEN_IMPORT_OLD_DATA_SAFETY_FACTOR * product_representation.count()

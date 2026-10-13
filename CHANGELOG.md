@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.4.1 — 2026-10-13
+
+### Fixed
+
+- Products no longer go missing from the read model after a seed or a large import. Two fills that overlapped on one
+  channel (a full channel fill and a per-product fill, or the fills of a configurable product and of its variant)
+  could delete rows the other had just written: a product, its translations and attributes, and with a configurable
+  parent its variants too. A fill now holds a PostgreSQL session advisory lock for its channel for all of its steps,
+  so a second fill of that channel waits and then runs; fills of different channels do not wait for each other. The
+  cleanup deletes only rows older than its own run. Rows an earlier version deleted are not repaired by the upgrade:
+  `python manage.py fill-read-model --channel_idx <channel>` restores them.
+
 ## 4.4.0 — 2026-10-12
 
 - Optional sibling apps that are installed but not enabled no longer crash imports (`RuntimeError` is caught like
