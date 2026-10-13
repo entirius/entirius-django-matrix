@@ -1,9 +1,6 @@
 # Changelog
 
-## 4.4.0 — 2026-10-12
-
-- Optional sibling apps that are installed but not enabled no longer crash imports (`RuntimeError` is caught like
-  `ImportError`).
+## 4.4.1 — 2026-10-13
 
 ### Fixed
 
@@ -14,6 +11,11 @@
   so a second fill of that channel waits and then runs; fills of different channels do not wait for each other. The
   cleanup deletes only rows older than its own run. Rows an earlier version deleted are not repaired by the upgrade:
   `python manage.py fill-read-model --channel_idx <channel>` restores them.
+
+## 4.4.0 — 2026-10-12
+
+- Optional sibling apps that are installed but not enabled no longer crash imports (`RuntimeError` is caught like
+  `ImportError`).
 
 ### Security
 
