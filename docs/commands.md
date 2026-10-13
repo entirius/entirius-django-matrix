@@ -62,6 +62,10 @@ When all flags are False (default), steps execute in this order per channel:
 
 The `fill_read_model_for_product_task` Celery task (queue: `matrix_pull`) runs the same logic asynchronously for individual SKU updates triggered by PIM journal processing.
 
+### One Fill per Channel
+
+Every product step of a fill stamps the rows it writes with its start time and ends by deleting the rows of its scope (the channel, or the one SKU) that carry an older stamp or none. A row with a newer stamp belongs to a later run and stays. So that two fills never interleave on a channel, the whole per-channel body (products, prices, stock, pictures, videos, attachments and the cleanup) runs under a PostgreSQL session advisory lock keyed by the channel (`pg_advisory_lock(0x4D58464C, <channel id>)`, `django_matrix.workers.fill_lock`). The management command and both Celery tasks take it: a second fill of the same channel waits for the first and then runs, and logs one line after 5 seconds of waiting; fills of different channels do not wait for each other. A waiting task keeps its worker process until the lock is free. The lock is released when the fill ends and disappears with the database session if the process dies. It needs a connection that stays on one PostgreSQL session for the whole fill, so it does not work through a transaction-pooling proxy between the workers and the database.
+
 ---
 
 ## cleanup-read-model
