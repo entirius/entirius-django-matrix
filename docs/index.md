@@ -143,7 +143,7 @@ Matrix can be automatically synced from PIM changes via the signal-driven sync p
 - `flush_pending_matrix_sync` — reads debounced SKU set from Redis, dispatches rebuilds
 - `fill_read_model_for_channel_task` — full channel rebuild (when batch threshold exceeded)
 
-Both run on the `matrix_pull` queue. See [Signal-Driven Sync](/architecture/signal-driven-sync/) for full architecture.
+Both run on the `matrix_pull` queue. Fills of one channel run one at a time, whatever starts them: see [One Fill per Channel](./commands/#one-fill-per-channel). See [Signal-Driven Sync](/architecture/signal-driven-sync/) for full architecture.
 
 ## Pages
 
