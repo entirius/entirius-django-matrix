@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.4.2rc1 — 2026-10-17
+
+### Fixed
+
+- A configurable product no longer goes out of stock when only that product is refreshed. The per-product on-stock
+  pass (`fill_read_model_on_stock_batch` with `product_id`, run by the PIM signal refill) read only the parent's own
+  stock, so the configurable got `on_stock = false` and qty 0 while its variants were available. The pass now covers
+  the product's family (the product, its parent and the parent's children); a variant's pass refreshes its parent too.
+
 ## 4.4.1 — 2026-10-13
 
 ### Fixed
