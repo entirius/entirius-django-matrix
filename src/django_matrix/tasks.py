@@ -38,6 +38,7 @@ def suppress_stdout():
         sys.stdout = old_stdout
 
 
+from django_matrix.workers.fill_lock import channel_fill_lock
 from django_matrix.workers.fill_read_model_attachments import fill_read_model_attachments
 from django_matrix.workers.fill_read_model_pictures_and_thumbs import fill_read_model_pictures_and_thumbs
 from django_matrix.workers.fill_read_model_products_and_attributes import fill_read_model_products_and_attributes
@@ -124,7 +125,7 @@ def fill_read_model_with_flags(
             logger.info(f"Processing channel {channel.idx}")
 
         try:
-            with suppress_stdout():
+            with channel_fill_lock(channel, logger), suppress_stdout():
                 if custom or all_flags_false:
                     if logger:
                         logger.info("Filling custom products")

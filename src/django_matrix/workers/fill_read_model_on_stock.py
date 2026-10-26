@@ -8,11 +8,12 @@ from process_logger import ProcessLogger, ProcessLoggerMixin
 
 from django_matrix.models import Channel, ProductRepresentation
 
+# RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
 try:
     from django_qms.output import get_product_quantity, get_quantities
 
     _HAS_QMS = True
-except ImportError:
+except (ImportError, RuntimeError):
     _HAS_QMS = False
 
 BULK_BATCH_SIZE = 1000
@@ -29,6 +30,18 @@ class FillReadModelOnStock(ProcessLoggerMixin):
         self.quantities = None
         self.parent_quantities = {}
         self.product_id = product_id
+        self.skus = self._family_skus(product_id) if product_id else None
+
+    def _family_skus(self, sku: str) -> list[str]:
+        """A configurable's stock is the sum of its children's, so a pass for one product covers its family: the
+        product, its parent (if it is a child) and every child of that parent."""
+        parent_sku = (
+            ProductRepresentation.objects.filter(channel=self.channel, sku=sku)
+            .values_list("parent__sku", flat=True)
+            .first()
+        ) or sku
+        children = ProductRepresentation.objects.filter(channel=self.channel, parent__sku=parent_sku)
+        return sorted({sku, parent_sku, *children.values_list("sku", flat=True)})
 
     def set_logger(self, logger: ProcessLogger):
         super().set_logger(logger)
@@ -38,9 +51,8 @@ class FillReadModelOnStock(ProcessLoggerMixin):
             self.logger.info("django_qms not available, returning empty quantities")
             return {}
         try:
-            if self.product_id:
-                qty = get_product_quantity(self.channel.idx, self.product_id)
-                self.quantities = [(self.product_id, qty)]
+            if self.skus:
+                self.quantities = [(sku, get_product_quantity(self.channel.idx, sku)) for sku in self.skus]
             else:
                 self.quantities = get_quantities(self.channel.idx)
 
@@ -63,7 +75,7 @@ class FillReadModelOnStock(ProcessLoggerMixin):
         )
         bundles_grouped_by_sku = groupby(bundles, key=lambda x: x[0])
 
-        add_param = {"product__sku": self.product_id} if self.product_id else {}
+        add_param = {"product__sku__in": self.skus} if self.skus else {}
         quantities = Stock.annotated.filter(product__channel__idx=self.channel.idx, **add_param).values_list(
             "product__sku", "saleable_quantity"
         )
@@ -94,7 +106,7 @@ class FillReadModelOnStock(ProcessLoggerMixin):
     def get_all_products_representation(self):
         if self.products:
             return self.products
-        query = {"sku": self.product_id} if self.product_id else {}
+        query = {"sku__in": self.skus} if self.skus else {}
         self.products = (
             ProductRepresentation.objects.prefetch_related("parent")
             .filter(channel=self.channel, **query)
@@ -148,7 +160,7 @@ class FillReadModelOnStock(ProcessLoggerMixin):
             from django_checkout.models import Stock
 
             process_checkout = True
-        except ImportError:
+        except (ImportError, RuntimeError):
             # If we don't have django_checkout, ex. Catalog shop - we can import from QMS directly
             process_checkout = False
 

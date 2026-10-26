@@ -6,9 +6,10 @@ from decimal import ROUND_UP, Decimal
 
 from django_pim.services.bundle_data import get_default_subproducts
 
+# RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
 try:
     from django_pricemanager.output_bundle import get_aggregated_bundle_price
-except ImportError:  # pricemanager is an optional extra; the fill worker gates on _HAS_PRICEMANAGER
+except (ImportError, RuntimeError):  # pricemanager is an optional extra; the fill worker gates on _HAS_PRICEMANAGER
     get_aggregated_bundle_price = None
 
 from django_matrix import settings

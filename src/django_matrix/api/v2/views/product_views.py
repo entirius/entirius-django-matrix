@@ -5,6 +5,7 @@
 """Products v2 endpoints — listing, detail (via url_key), count."""
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -106,6 +107,8 @@ COUNT_PARAMS = [
 class ProductsView(ChannelMixin, APIView):
     """Unified products endpoint. Always returns paginated shape. Include groups control depth."""
 
+    authentication_classes = []
+    permission_classes = [AllowAny]
     known_params = known_query_params(PRODUCTS_PARAMS)
 
     @extend_schema(
@@ -175,6 +178,8 @@ class ProductsView(ChannelMixin, APIView):
 class ProductCountView(ChannelMixin, APIView):
     """Separate count endpoint — cached independently, longer TTL."""
 
+    authentication_classes = []
+    permission_classes = [AllowAny]
     known_params = known_query_params(COUNT_PARAMS)
 
     @extend_schema(

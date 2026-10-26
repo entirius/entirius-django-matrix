@@ -18,6 +18,7 @@ from django_matrix.services.bundle_service import (
 )
 from django_matrix.utils.timestamp_print import timestamp_print
 
+# RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
 try:
     from django_pricemanager.output import (
         get_current_prices,
@@ -27,7 +28,7 @@ try:
     )
 
     _HAS_PRICEMANAGER = True
-except ImportError:
+except (ImportError, RuntimeError):
     _HAS_PRICEMANAGER = False
     read_from_current = lambda: False
 
@@ -97,7 +98,7 @@ def calculate_badge(special_price, normal_price) -> Decimal:
 def cache_omnibus_price(channel: Channel, product_id: str = None, logger: ProcessLogger = None) -> dict:
     try:
         from django_omnibus.models import OmnibusPrice
-    except ImportError:
+    except (ImportError, RuntimeError):
         if logger:
             logger.info("django_omnibus not available, skipping omnibus price cache")
         return {}

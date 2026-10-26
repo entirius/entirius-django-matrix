@@ -202,9 +202,10 @@ class Prices(ProcessLoggerMixin):
         uid: str | None = None,
         is_customer_verified: bool = False,
     ):
+        # RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
         try:
             from django_pricemanager.output_bundle import get_product_bundle_components_price
-        except ImportError:
+        except (ImportError, RuntimeError):
             return [], ""
 
         # Ceny składowe bundla nie obsługują cen przedziałowych (range price will always be null)

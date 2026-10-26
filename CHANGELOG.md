@@ -1,5 +1,38 @@
 # Changelog
 
+## 4.5.0rc1 — 2026-10-26
+
+### Fixed
+
+- A configurable product no longer goes out of stock when only that product is refreshed. The per-product on-stock
+  pass (`fill_read_model_on_stock_batch` with `product_id`, run by the PIM signal refill) read only the parent's own
+  stock, so the configurable got `on_stock = false` and qty 0 while its variants were available. The pass now covers
+  the product's family (the product, its parent and the parent's children); a variant's pass refreshes its parent too.
+
+## 4.4.1 — 2026-10-13
+
+### Fixed
+
+- Products no longer go missing from the read model after a seed or a large import. Two fills that overlapped on one
+  channel (a full channel fill and a per-product fill, or the fills of a configurable product and of its variant)
+  could delete rows the other had just written: a product, its translations and attributes, and with a configurable
+  parent its variants too. A fill now holds a PostgreSQL session advisory lock for its channel for all of its steps,
+  so a second fill of that channel waits and then runs; fills of different channels do not wait for each other. The
+  cleanup deletes only rows older than its own run. Rows an earlier version deleted are not repaired by the upgrade:
+  `python manage.py fill-read-model --channel_idx <channel>` restores them.
+
+## 4.4.0 — 2026-10-12
+
+- Optional sibling apps that are installed but not enabled no longer crash imports (`RuntimeError` is caught like
+  `ImportError`).
+
+### Security
+
+- The public v2 views (products, count, options, search, categories, stock, omnibus) declare
+  `authentication_classes = []` and `AllowAny`. They declared none, so a service that leaves DRF's defaults (session
+  and Basic) evaluated `Authorization: Basic` on them: the answer differed for a right and a wrong password, outside
+  any login throttle. Credentials are now ignored there; `prices/` keeps JWT.
+
 ## 4.3.0 — 2026-08-06
 
 - Ranged bundle pricing and product variant groups.
