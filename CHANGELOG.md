@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.5.0rc1 — 2026-10-26
 
 ### Fixed
 
@@ -9,11 +9,6 @@
   pool thread, so every listing left two idle connections until garbage collection. Under load Postgres refused new
   clients ("too many clients already") and every API call answered 500. Each pool thread now closes its own
   connection.
-
-## 4.4.2rc1 — 2026-10-17
-
-### Fixed
-
 - A configurable product no longer goes out of stock when only that product is refreshed. The per-product on-stock
   pass (`fill_read_model_on_stock_batch` with `product_id`, run by the PIM signal refill) read only the parent's own
   stock, so the configurable got `on_stock = false` and qty 0 while its variants were available. The pass now covers
