@@ -76,7 +76,10 @@ All read via `getattr(settings, ...)` with defaults (see `settings.py`, referenc
 Key toggles: `MATRIX_PRODUCTS_PARALLEL_QUERIES`, `MATRIX_FULL_TEXT_SEARCH`, `MATRIX_FUZZY_SEARCH`
 (+ `_THRESHOLD`), `MATRIX_ENABLE_REALTIME_STOCK_UPDATE`, `USE_PRICE_TUNER_IN_MATRIX`,
 `USE_CACHED_VIEWS` (+ `CACHE_TTL`), `PRICE_TYPE`/`PRICE_DECIMAL_PLACES`, pagination knobs,
-`API_BASE_URL`, `VISIBILITY_MECHANISM`.
+`API_BASE_URL`, `VISIBILITY_MECHANISM`,
+`MATRIX_SORT_ATTRIBUTES_BY_CHANNEL_POSITION` (default `False` — order attributes by the per-channel
+feature `position` instead of the global `display_order`; attributes with no row in the per-channel
+table have no position and sort last).
 
 ## Gotchas
 

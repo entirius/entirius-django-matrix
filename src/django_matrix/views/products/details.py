@@ -8,6 +8,7 @@ from django_utils.api.responses import Response
 
 from django_matrix.dto.view.attribute import attribute_collection
 from django_matrix.dto.view.product import product_collection
+from django_matrix.repository.orm.product_categories import ProductCategories as ProductCategoriesRepository
 from django_matrix.repository.orm.product_variant_groups import ProductVariantGroups as ProductVariantGroupRepository
 from django_matrix.repository.raw_sql.attribute import Attribute as AttributeRepository
 from django_matrix.repository.raw_sql.product import Product as ProductRepository
@@ -72,6 +73,12 @@ def products_details_view(request, params: DetailsQuery, url_key: str, *args, **
         variant_groups = ProductVariantGroupRepository(channel, language, country, currency).build_for_skus(sku_list)
         for product in products:
             product["product_variants"] = variant_groups.get(product["sku"], [])
+
+    # Categories the product belongs to (with breadcrumbs)
+    if params.fetch_categories is True and len(sku_list) > 0:
+        categories = ProductCategoriesRepository(channel, language, country, currency).build_for_skus(sku_list)
+        for product in products:
+            product["categories"] = categories.get(product["sku"], [])
 
     if len(products) == 0:
         raise NotFound(f"Product {url_key} does not exist")

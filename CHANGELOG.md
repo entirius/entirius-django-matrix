@@ -2,6 +2,21 @@
 
 ## 4.5.0rc1 — 2026-10-26
 
+### Added
+
+- `fetch_categories=true` on the v1 `products/` and `products/<url_key>/` views side-loads each product's PIM
+  categories (with breadcrumbs, the shape of `products-categories/`) as `categories`, so a storefront no longer needs
+  a second round trip. A SKU with no PIM product gets an empty list. Without the parameter the response is unchanged.
+  The v2 views do not have it.
+- `MATRIX_SORT_ATTRIBUTES_BY_CHANNEL_POSITION` (default `False`): attributes are ordered by the per-channel
+  `position` of the visibility feature instead of the global `display_order`; attributes with no per-channel row sort
+  last.
+
+### Changed
+
+- The options payload drops a numeric range whose min equals max (a category holding one product with the feature):
+  a slider that cannot move filters nothing. DECIMAL ranges were already dropped in SQL.
+
 ### Fixed
 
 - The product listing no longer leaks database connections. `execute_parallel_queries` runs the list and its COUNT in

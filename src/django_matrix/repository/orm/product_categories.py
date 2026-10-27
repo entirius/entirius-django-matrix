@@ -74,6 +74,22 @@ class ProductCategories:
 
         return categories
 
+    def build_for_skus(self, skus: list[str], asdict: bool = True) -> dict:
+        """Return {sku: [category dicts]} for the requested SKUs.
+
+        Side-loading helper for the product views — swallows the "nothing matched" ValueError
+        so an unknown SKU yields an empty mapping instead of failing the whole product response.
+        """
+        try:
+            categories = self.find_by_api_query(ProductsCategoriesQuery(sku=skus))
+        except ValueError:
+            return {}
+
+        result: dict[str, list] = {}
+        for category in categories:
+            result.setdefault(category.sku, []).append(category.asdict() if asdict else category)
+        return result
+
     def build_breadcrumbs(self, categories: list[ProductCategory], separator: str = ">"):
         breadcrumb_path = []
         breadcrumbs = []

@@ -458,6 +458,11 @@ class Options(DbConnect):
             min_max = self._fetch_numeric_feature_min_max(feature["feature_idx"], products_sql, products_sql_params)
             if min_max is None:
                 continue
+            if min_max[0] == min_max[1]:
+                # A slider with both ends on the same value filters nothing and renders as a dead
+                # control — that is what a category holding a single product with the feature gives.
+                # DECIMAL ranges drop these in SQL (HAVING MIN != MAX); this path drops them here.
+                continue
             _canonical_unit, unit_cls = Feature.objects.get(idx=feature["feature_idx"]).get_cls_unit_conversion()
             if unit_cls is None:
                 continue
