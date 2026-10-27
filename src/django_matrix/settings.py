@@ -110,6 +110,10 @@ MATRIX_DATETIME_FORMAT = getattr(settings, "MATRIX_DATETIME_FORMAT", "%Y-%m-%dT%
 VISIBILITY_MECHANISM = getattr(settings, "VISIBILITY_MECHANISM", 1)
 BLACKLISTED_FEATURES_IDX_VISIBILITY = getattr(settings, "BLACKLISTED_FEATURES_IDX_VISIBILITY", [])
 
+# Order attributes by the per-channel `position` of the visibility feature instead of the global
+# django_pim_feature.display_order. Off by default — display_order stays the source of order.
+MATRIX_SORT_ATTRIBUTES_BY_CHANNEL_POSITION = getattr(settings, "MATRIX_SORT_ATTRIBUTES_BY_CHANNEL_POSITION", False)
+
 DEFAULT_OPTIONS_META_DATA = {
     "order_by": {
         "idx": "order_by",

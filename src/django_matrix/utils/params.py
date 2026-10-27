@@ -147,6 +147,7 @@ class Query(BaseQuery):
     magento_id: list[str] | None = None
     fetch_attributes: bool | None = None
     fetch_full_data: bool | None = None
+    fetch_categories: bool | None = None
     fetch_variant_groups: bool | None = None
     search_window: bool | None = None
     Schema: ClassVar[builtins.type[Schema]] = Schema
@@ -187,6 +188,7 @@ class Query(BaseQuery):
 @dataclass
 class DetailsQuery(SimpleQuery):
     fetch_attributes: bool | None = None
+    fetch_categories: bool | None = None
     fetch_variant_groups: bool | None = None
     Schema: ClassVar[type[Schema]] = Schema
 

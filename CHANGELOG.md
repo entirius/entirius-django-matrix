@@ -1,9 +1,29 @@
 # Changelog
 
-## 4.4.2rc1 — 2026-10-17
+## 4.5.0 — 2026-10-27
+
+### Added
+
+- `fetch_categories=true` on the v1 `products/` and `products/<url_key>/` views side-loads each product's PIM
+  categories (with breadcrumbs, the shape of `products-categories/`) as `categories`, so a storefront no longer needs
+  a second round trip. A SKU with no PIM product gets an empty list. Without the parameter the response is unchanged.
+  The v2 views do not have it.
+- `MATRIX_SORT_ATTRIBUTES_BY_CHANNEL_POSITION` (default `False`): attributes are ordered by the per-channel
+  `position` of the visibility feature instead of the global `display_order`; attributes with no per-channel row sort
+  last.
+
+### Changed
+
+- The options payload drops a numeric range whose min equals max (a category holding one product with the feature):
+  a slider that cannot move filters nothing. DECIMAL ranges were already dropped in SQL.
 
 ### Fixed
 
+- The product listing no longer leaks database connections. `execute_parallel_queries` runs the list and its COUNT in
+  two pool threads; Django keeps a connection per thread and closes it when a request ends, which never happens in a
+  pool thread, so every listing left two idle connections until garbage collection. Under load Postgres refused new
+  clients ("too many clients already") and every API call answered 500. Each pool thread now closes its own
+  connection.
 - A configurable product no longer goes out of stock when only that product is refreshed. The per-product on-stock
   pass (`fill_read_model_on_stock_batch` with `product_id`, run by the PIM signal refill) read only the parent's own
   stock, so the configurable got `on_stock = false` and qty 0 while its variants were available. The pass now covers
