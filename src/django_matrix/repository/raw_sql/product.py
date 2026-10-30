@@ -21,6 +21,10 @@ from django_matrix.settings import (
 from django_matrix.utils.params import Query
 from django_matrix.utils.unit_options import to_canonical
 
+# Last ORDER BY key of a listing. Rows that tie on the other keys have no fixed order between queries, so OFFSET
+# pagination would repeat some of them on two pages and never return others.
+TIE_BREAKER = "pr.id ASC "
+
 
 class Product(DbConnect):
     app_name = "django_matrix"
@@ -33,6 +37,9 @@ class Product(DbConnect):
     @staticmethod
     def get_all_system_sort():
         return [Sorting.SKU, Sorting.NAME, Sorting.CREATED, Sorting.PRICE, Sorting.ON_STOCK, Sorting.RELEVANCE]
+
+    def _order_by(self, orders: list[str]) -> str:
+        return f"ORDER BY {self.sep.join([*orders, TIE_BREAKER])}"
 
     def _warn(self, code: str, param: str, message: str) -> None:
         """Record a non-blocking, user-facing warning for an ignored q_/r_/s_ param."""
@@ -57,8 +64,6 @@ class Product(DbConnect):
                 orders.append(f"pr.created_at {direction} ")
             case Sorting.PRICE:
                 orders.append(f"COALESCE(pp.final_price, pp.range_from) {direction} ")
-                # stable sort - te same endpointy zwrócą te same wyniki w przypadku tej samej ceny
-                orders.append("pr.id ASC ")
             case Sorting.ON_STOCK:
                 orders.append(f"pr.on_stock {direction} ")
             case Sorting.RELEVANCE:
@@ -604,11 +609,9 @@ class Product(DbConnect):
 
         if params.category_url_key:
             orders.append("pr.categories_position -> %(cat_url_key)s ASC ")
-            # deterministic sort for categories, without it we can get different order (pagination) for the same category_position
-            orders.append("pr.id ASC ")
 
         if len(orders) > 0:
-            sql += f"ORDER BY {self.sep.join(orders)}"
+            sql += self._order_by(orders)
         elif params.magento_id:
             magento_id_list = ",".join(map(str, params.magento_id))
             sql += f"ORDER BY array_position(ARRAY[{magento_id_list}]::integer[], pr.magento_id) "
@@ -618,13 +621,12 @@ class Product(DbConnect):
                 orders, messages, counter = self._apply_search_default_sort(
                     orders, channel, restrictions, sql_params, counter, messages
                 )
-                orders.append("pr.id ASC ")
-                sql += f"ORDER BY {self.sep.join(orders)}"
+                sql += self._order_by(orders)
             else:
                 orders, messages = self.get_order_type(
                     channel, channel.default_order, orders, channel.default_order_direction, messages
                 )
-                sql += f"ORDER BY {self.sep.join(orders)}"
+                sql += self._order_by(orders)
 
         count_pages = 0
 
