@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- A paginated listing no longer repeats some products and loses others. Every product query now ends its `ORDER BY`
+  with `pr.id`; before, only a price sort and a category listing did, so products that tied on the default `on_stock`
+  order, on `s_on_stock` or on `s_name` could land on two pages or on none, depending on the query plan. Listings
+  without a category and search results were affected.
+- A multi-key sort with `s_price` first honours the next key (`s_price=asc&s_name=desc`). The price sort put `pr.id`
+  right after the price, so products of one price were ordered by id and the next key did nothing.
+
 ## 4.5.0 — 2026-10-27
 
 ### Added
