@@ -85,6 +85,19 @@ class FillReadModelOnStock(ProcessLoggerMixin):
             qtys[sku] = quantity
         self.quantities = qtys
 
+        # The cart's own count of a bundle (required and default components when it has limits), so on_stock agrees
+        # with what the cart accepts. A checkout without get_bundle_quantities yet keeps the count below.
+        try:
+            from django_checkout.output.quantities import get_bundle_quantities
+        except (ImportError, RuntimeError):
+            get_bundle_quantities = None
+        if get_bundle_quantities:
+            bundle_skus = sorted({sku_bundle for sku_bundle, _, _ in bundles})
+            if self.skus:
+                bundle_skus = [sku for sku in bundle_skus if sku in self.skus]
+            self.quantities.update(get_bundle_quantities(bundle_skus, self.channel.idx))
+            return self.quantities
+
         for sku_bundle, sub_skus_iter in bundles_grouped_by_sku:
             if sku_bundle in self.quantities.keys():
                 self.logger.add_log_param("sku_bundle", sku_bundle)

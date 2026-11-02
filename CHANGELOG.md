@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- v2 and v1 `stock/` (client-visible): a bundle answers what its components allow, as the cart counts it, not its
+  own Stock row. A bundle with a component sold out answered its own Stock row (15 pieces in the seed), so a storefront
+  let the customer add it and the cart then marked the line `out_of_stock`. The count comes from checkout
+  (`output.quantities.get_bundle_quantities`); with a checkout that does not have it yet, a bundle keeps its own row
+  as before. The `on_stock` read model counts bundles the same way, so a bundle with limits is no longer sold out
+  over an optional component.
+- `stock/` reads the channel's global supplier, like the cart. With more than one Stock row per SKU it took
+  whichever came last.
+
 ## 4.5.0 — 2026-10-27
 
 ### Added
