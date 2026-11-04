@@ -3,6 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import json
+import re
 
 from django_regional.models import Country, Currency, Language
 
@@ -20,6 +21,16 @@ from django_matrix.settings import (
 )
 from django_matrix.utils.params import Query
 from django_matrix.utils.unit_options import to_canonical
+
+# pr.magento_id is a 32-bit integer column: any other request value matches no product.
+_INTEGER = re.compile(r"-?[0-9]{1,10}")
+_INT4 = range(-(2**31), 2**31)
+
+
+def as_magento_ids(values: list) -> list[int]:
+    """The magento_id values of a request that can match the column, in request order."""
+    numbers = [int(value) for value in map(str, values) if _INTEGER.fullmatch(value)]
+    return [number for number in numbers if number in _INT4]
 
 
 class Product(DbConnect):
@@ -240,8 +251,8 @@ class Product(DbConnect):
 
         # Filter by magento_id
         if params.magento_id:
-            sql += "AND pr.magento_id IN %(magento_id)s "
-            sql_params["magento_id"] = tuple(params.magento_id)
+            sql += "AND pr.magento_id = ANY(%(magento_id)s::integer[]) "
+            sql_params["magento_id"] = as_magento_ids(params.magento_id)
 
         # Find by SKU
         if params.sku:
@@ -610,8 +621,7 @@ class Product(DbConnect):
         if len(orders) > 0:
             sql += f"ORDER BY {self.sep.join(orders)}"
         elif params.magento_id:
-            magento_id_list = ",".join(map(str, params.magento_id))
-            sql += f"ORDER BY array_position(ARRAY[{magento_id_list}]::integer[], pr.magento_id) "
+            sql += "ORDER BY array_position(%(magento_id)s::integer[], pr.magento_id) "
         elif apply_default_order:
             if self._has_search_ranking:
                 orders.append("search_rank DESC ")

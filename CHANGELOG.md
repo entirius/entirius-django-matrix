@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- v1 `products/?magento_id=` and the Magento search listing `products_m2/` answer again; on psycopg 3 both failed
+  with a 500, because the filter passed the ids as a tuple. The ids now go to Postgres as one bound integer array,
+  used by the filter and by the order (products come back in the order of the ids). A value that is not a 32-bit
+  integer matches no product instead of failing the query.
+
 ## 4.5.0 — 2026-10-27
 
 ### Added
