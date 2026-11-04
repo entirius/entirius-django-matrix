@@ -55,7 +55,8 @@ Denormalized read model of the product catalog for storefront reads.
 - `entirius-py-magento2-sdk2` (**required**) — Magento search/suggest workers.
 - `entirius-django-qms` (extra `qms`) — stock read when `django_checkout` absent (soft).
 - `entirius-django-pricemanager` (extra `pricemanager`) — price fill (soft, degrades gracefully).
-- `entirius-django-checkout` (extra `checkout`) — stock signal/model, QMS fallback (soft).
+- `entirius-django-checkout` (extra `checkout`) — stock signal/model, bundle stock counted by its components
+  (`output.quantities.get_bundle_quantities`, the cart's count), QMS fallback (soft).
 - customer-group pricing behind `USE_PRICE_TUNER_IN_MATRIX` — lazy import with graceful fallback;
   the integrating package ships outside this repository.
 - `entirius-django-omnibus` (extra `omnibus`) — omnibus price lookup (soft, `None` when absent).
@@ -89,3 +90,7 @@ table have no position and sort last).
 - Most optional sibling imports catch `(ImportError, RuntimeError)` (`RuntimeError`: installed but not in
   `INSTALLED_APPS`); the omnibus import of `repository/orm/prices.py`, `dto/view/price.py` and
   `signals/receivers.py` still catch `ImportError` only.
+- Every listing `ORDER BY` ends with the tie-breaker `pr.id`, in the direction of the first key
+  (`repository/raw_sql/product.py` `_order_by`). An index meant to serve a listing order needs `id` as its last
+  column (`idx_product_channel_stock_id`); on an existing table add it with `AddIndexConcurrently` in a migration with
+  `atomic = False`.
