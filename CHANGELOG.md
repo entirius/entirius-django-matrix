@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- The v1 and v2 product listings no longer answer 500 with the default `PAGINATION_TYPE = 1` when the page count runs
+  on the request thread: with `MATRIX_PRODUCTS_PARALLEL_QUERIES = False`, or when the parallel queries fail (for
+  example "too many clients") and the listing falls back to running them in turn. The count read a page size the
+  listing parameters do not carry (`KeyError: 'limit'`); it now runs the count the parallel path runs, over the whole
+  listing.
+
 ## 4.5.0 — 2026-10-27
 
 ### Added
