@@ -10,6 +10,16 @@
   without a category and search results were affected.
 - A multi-key sort with `s_price` first honours the next key (`s_price=asc&s_name=desc`). The price sort put `pr.id`
   right after the price, so products of one price were ordered by id and the next key did nothing.
+- The default `on_stock` listing reads its page from an index again, in both directions. With `pr.id` at the end of
+  the `ORDER BY`, `idx_product_channel_stock (channel, on_stock)` no longer covered the order, and page 1 of a
+  60k-product channel took 83 ms (a sort of the whole channel) instead of 0.1 ms. Migration `0047` builds
+  `idx_product_channel_stock_id (channel, on_stock, id)`, `0048` drops the old index it makes redundant; both run
+  `CONCURRENTLY`, so the table stays writable. The tie-breaker now runs in the direction of the first sort key
+  (`pr.id DESC` after `on_stock DESC`), so a descending order is a backward scan of the same index. If `0047` is
+  interrupted it leaves an invalid index: `DROP INDEX CONCURRENTLY idx_product_channel_stock_id;` and migrate again.
+- The listing count (`PAGINATION_TYPE` 1 and 2) no longer sorts what it counts. It wrapped the whole query,
+  `ORDER BY` included, so Postgres sorted every product of the listing first; on 60k products the count drops from
+  25 ms (11 ms before the tie-breaker) to 5 ms.
 
 ## 4.5.0 — 2026-10-27
 
