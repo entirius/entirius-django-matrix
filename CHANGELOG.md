@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- v1 `products/?magento_id=` and the Magento search listing `products_m2/` answer again; on psycopg 3 both failed
+  with a 500, because the filter passed the ids as a tuple. The ids now go to Postgres as one bound integer array,
+  used by the filter and by the order (products come back in the order of the ids). A value that is not a 32-bit
+  integer matches no product instead of failing the query.
 - v2 and v1 `stock/` (client-visible): a bundle answers what its components allow, as the cart counts it, not its
   own Stock row. A bundle with a component sold out answered its own Stock row (15 pieces in the seed), so a storefront
   let the customer add it and the cart then marked the line `out_of_stock`. The count comes from checkout
