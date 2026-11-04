@@ -55,7 +55,8 @@ Denormalized read model of the product catalog for storefront reads.
 - `entirius-py-magento2-sdk2` (**required**) — Magento search/suggest workers.
 - `entirius-django-qms` (extra `qms`) — stock read when `django_checkout` absent (soft).
 - `entirius-django-pricemanager` (extra `pricemanager`) — price fill (soft, degrades gracefully).
-- `entirius-django-checkout` (extra `checkout`) — stock signal/model, QMS fallback (soft).
+- `entirius-django-checkout` (extra `checkout`) — stock signal/model, bundle stock counted by its components
+  (`output.quantities.get_bundle_quantities`, the cart's count), QMS fallback (soft).
 - customer-group pricing behind `USE_PRICE_TUNER_IN_MATRIX` — lazy import with graceful fallback;
   the integrating package ships outside this repository.
 - `entirius-django-omnibus` (extra `omnibus`) — omnibus price lookup (soft, `None` when absent).

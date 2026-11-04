@@ -4,6 +4,14 @@
 
 ### Fixed
 
+- v2 and v1 `stock/` (client-visible): a bundle answers what its components allow, as the cart counts it, not its
+  own Stock row. A bundle with a component sold out answered its own Stock row (15 pieces in the seed), so a storefront
+  let the customer add it and the cart then marked the line `out_of_stock`. The count comes from checkout
+  (`output.quantities.get_bundle_quantities`); with a checkout that does not have it yet, a bundle keeps its own row
+  as before. The `on_stock` read model counts bundles the same way, so a bundle with limits is no longer sold out
+  over an optional component.
+- `stock/` and the `on_stock` read model read the channel's global supplier, like the cart. With more than one Stock
+  row per SKU they took whichever came last.
 - A paginated listing no longer repeats some products and loses others. Every product query now ends its `ORDER BY`
   with `pr.id`; before, only a price sort and a category listing did, so products that tied on the default `on_stock`
   order, on `s_on_stock` or on `s_name` could land on two pages or on none, depending on the query plan. Listings
@@ -20,6 +28,7 @@
 - The listing count (`PAGINATION_TYPE` 1 and 2) no longer sorts what it counts. It wrapped the whole query,
   `ORDER BY` included, so Postgres sorted every product of the listing first; on 60k products the count drops from
   25 ms (11 ms before the tie-breaker) to 5 ms.
+
 
 ## 4.5.0 — 2026-10-27
 
