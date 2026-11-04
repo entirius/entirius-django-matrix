@@ -90,3 +90,7 @@ table have no position and sort last).
 - Most optional sibling imports catch `(ImportError, RuntimeError)` (`RuntimeError`: installed but not in
   `INSTALLED_APPS`); the omnibus import of `repository/orm/prices.py`, `dto/view/price.py` and
   `signals/receivers.py` still catch `ImportError` only.
+- Every listing `ORDER BY` ends with the tie-breaker `pr.id`, in the direction of the first key
+  (`repository/raw_sql/product.py` `_order_by`). An index meant to serve a listing order needs `id` as its last
+  column (`idx_product_channel_stock_id`); on an existing table add it with `AddIndexConcurrently` in a migration with
+  `atomic = False`.

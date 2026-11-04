@@ -72,7 +72,7 @@ class ProductRepresentation(BaseModel):
             GinIndex(fields=["attributes_filter"], name="idx_product_attributes_gin"),
             GinIndex(fields=["url_keys"], name="idx_product_url_keys_gin"),
             models.Index(fields=["channel"], name="idx_product_channel"),
-            models.Index(fields=["channel", "on_stock"], name="idx_product_channel_stock"),
+            models.Index(fields=["channel", "on_stock", "id"], name="idx_product_channel_stock_id"),
             models.Index(fields=["channel", "product_type"], name="idx_product_channel_type"),
             models.Index(
                 fields=["channel"],
