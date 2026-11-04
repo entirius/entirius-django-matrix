@@ -56,6 +56,7 @@ def list_products(
         country=country,
         currency=currency,
         is_customer_verified=False,
+        count=False,
     )
 
     has_next_page = len(results) > page_size

@@ -148,6 +148,7 @@ class Product(DbConnect):
         only_generate_minimal_sql=False,
         custom_sort=None,
         sku_subquery: tuple[str, dict] | None = None,
+        count: bool = True,  # False: rows only, no page count (returned as 0); v2 pages with LIMIT + 1
     ):
         def split_list(values: list, param_name: str, additional_counter: int | None = None):
             i = 1
@@ -671,6 +672,7 @@ class Product(DbConnect):
             )
             and not params.search_window
             and limit_offset
+            and count
         ):
             if settings.PAGINATION_TYPE == PaginationType.FULL_PAGES:
                 count_sql = f"SELECT count(*) FROM ({unordered_sql}) as licz"
@@ -700,6 +702,7 @@ class Product(DbConnect):
                 )
                 and not params.search_window
                 and limit_offset
+                and count
             ):
                 if settings.PAGINATION_TYPE == PaginationType.FULL_PAGES:
                     count_pages = self.count_full_pages(unordered_sql, sql_params)
