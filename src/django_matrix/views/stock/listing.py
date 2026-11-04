@@ -10,6 +10,7 @@ from django_utils.api.responses import Response
 from marshmallow import Schema
 from marshmallow_dataclass import dataclass as ma_dataclass
 
+from django_matrix.services import stock_service
 from django_matrix.utils.decorators import prepare_view
 from django_matrix.utils.params import SimpleQuery, get_view_variable_from_kwargs
 
@@ -32,29 +33,8 @@ def _quantity_factory(sku: str, quantity: int) -> dict:
 
 
 def _get_quantities(skus: list[str], channel_idx: str) -> dict:
-    """Get stock quantities, trying checkout first, then QMS."""
-    # RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
-    try:
-        from django_checkout.models import Stock
-
-        quantities = {}
-        stock_data = Stock.annotated.filter(product__sku__in=skus, product__channel__idx=channel_idx).values(
-            "product__sku", "saleable_quantity"
-        )
-        for row in stock_data:
-            quantities[row["product__sku"]] = row["saleable_quantity"]
-        return quantities
-    except (ImportError, RuntimeError):
-        pass
-
-    try:
-        from django_qms.output import get_quantities
-
-        return dict(get_quantities(channel_idx).filter(product__sku__in=skus))
-    except (ImportError, RuntimeError):
-        pass
-
-    return {}
+    """Get stock quantities: the same answer as v2 `stock/` (checkout first, then QMS; bundles by their components)."""
+    return stock_service.get_quantities(skus, channel_idx)
 
 
 @api_view

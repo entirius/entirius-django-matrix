@@ -3,6 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import json
+import re
 
 from django_regional.models import Country, Currency, Language
 
@@ -21,6 +22,25 @@ from django_matrix.settings import (
 from django_matrix.utils.params import Query
 from django_matrix.utils.unit_options import to_canonical
 
+# Last ORDER BY key of a listing. Rows that tie on the other keys have no fixed order between queries, so OFFSET
+# pagination would repeat some of them on two pages and never return others. It runs in the direction of the first
+# key: idx_product_channel_stock_id (channel, on_stock, id) then serves the default on_stock order both ways,
+# DESC as a backward scan, instead of sorting the whole channel.
+TIE_BREAKER = "pr.id"
+
+# An ORDER BY item ends with its direction, optionally followed by NULLS FIRST / NULLS LAST.
+_DESCENDING = re.compile(r"\bDESC(\s+NULLS\s+(FIRST|LAST))?\s*\Z", re.IGNORECASE)
+
+# pr.magento_id is a 32-bit integer column: any other request value matches no product.
+_INTEGER = re.compile(r"-?[0-9]{1,10}")
+_INT4 = range(-(2**31), 2**31)
+
+
+def as_magento_ids(values: list) -> list[int]:
+    """The magento_id values of a request that can match the column, in request order."""
+    numbers = [int(value) for value in map(str, values) if _INTEGER.fullmatch(value)]
+    return [number for number in numbers if number in _INT4]
+
 
 class Product(DbConnect):
     app_name = "django_matrix"
@@ -33,6 +53,10 @@ class Product(DbConnect):
     @staticmethod
     def get_all_system_sort():
         return [Sorting.SKU, Sorting.NAME, Sorting.CREATED, Sorting.PRICE, Sorting.ON_STOCK, Sorting.RELEVANCE]
+
+    def _order_by(self, orders: list[str]) -> str:
+        direction = "DESC" if orders and _DESCENDING.search(orders[0]) else "ASC"
+        return f"ORDER BY {self.sep.join([*orders, f'{TIE_BREAKER} {direction} '])}"
 
     def _warn(self, code: str, param: str, message: str) -> None:
         """Record a non-blocking, user-facing warning for an ignored q_/r_/s_ param."""
@@ -57,8 +81,6 @@ class Product(DbConnect):
                 orders.append(f"pr.created_at {direction} ")
             case Sorting.PRICE:
                 orders.append(f"COALESCE(pp.final_price, pp.range_from) {direction} ")
-                # stable sort - te same endpointy zwrócą te same wyniki w przypadku tej samej ceny
-                orders.append("pr.id ASC ")
             case Sorting.ON_STOCK:
                 orders.append(f"pr.on_stock {direction} ")
             case Sorting.RELEVANCE:
@@ -240,8 +262,8 @@ class Product(DbConnect):
 
         # Filter by magento_id
         if params.magento_id:
-            sql += "AND pr.magento_id IN %(magento_id)s "
-            sql_params["magento_id"] = tuple(params.magento_id)
+            sql += "AND pr.magento_id = ANY(%(magento_id)s::integer[]) "
+            sql_params["magento_id"] = as_magento_ids(params.magento_id)
 
         # Find by SKU
         if params.sku:
@@ -604,27 +626,28 @@ class Product(DbConnect):
 
         if params.category_url_key:
             orders.append("pr.categories_position -> %(cat_url_key)s ASC ")
-            # deterministic sort for categories, without it we can get different order (pagination) for the same category_position
-            orders.append("pr.id ASC ")
+
+        # The count needs no order: an ORDER BY inside the counted subquery makes Postgres sort every row first.
+        unordered_sql = sql
 
         if len(orders) > 0:
-            sql += f"ORDER BY {self.sep.join(orders)}"
+            sql += self._order_by(orders)
         elif params.magento_id:
-            magento_id_list = ",".join(map(str, params.magento_id))
-            sql += f"ORDER BY array_position(ARRAY[{magento_id_list}]::integer[], pr.magento_id) "
+            sql += self._order_by(["array_position(%(magento_id)s::integer[], pr.magento_id) "])
         elif apply_default_order:
             if self._has_search_ranking:
                 orders.append("search_rank DESC ")
                 orders, messages, counter = self._apply_search_default_sort(
                     orders, channel, restrictions, sql_params, counter, messages
                 )
-                orders.append("pr.id ASC ")
-                sql += f"ORDER BY {self.sep.join(orders)}"
+                sql += self._order_by(orders)
             else:
                 orders, messages = self.get_order_type(
                     channel, channel.default_order, orders, channel.default_order_direction, messages
                 )
-                sql += f"ORDER BY {self.sep.join(orders)}"
+                sql += self._order_by(orders)
+        else:
+            sql += self._order_by([])
 
         count_pages = 0
 
@@ -650,10 +673,10 @@ class Product(DbConnect):
             and limit_offset
         ):
             if settings.PAGINATION_TYPE == PaginationType.FULL_PAGES:
-                count_sql = f"SELECT count(*) FROM ({sql}) as licz"
+                count_sql = f"SELECT count(*) FROM ({unordered_sql}) as licz"
                 count_sql_params = dict(sql_params)
             else:
-                count_sql = f"SELECT count(*) FROM ({sql}) as licz"
+                count_sql = f"SELECT count(*) FROM ({unordered_sql}) as licz"
                 count_sql_params = dict(sql_params)
                 count_sql_params["limit"] = params.limit * settings.PAGINATION_NEXT_PAGES_COUNT
 
@@ -664,9 +687,9 @@ class Product(DbConnect):
             except Exception:
                 products = self.fetch_all(main_sql, main_sql_params)
                 if settings.PAGINATION_TYPE == PaginationType.FULL_PAGES:
-                    count_pages = self.count_full_pages(sql, sql_params)
+                    count_pages = self.count_full_pages(unordered_sql, sql_params)
                 else:
-                    count_pages = self.count_x_pages(sql, sql_params, settings.PAGINATION_NEXT_PAGES_COUNT)
+                    count_pages = self.count_x_pages(unordered_sql, sql_params, settings.PAGINATION_NEXT_PAGES_COUNT)
         else:
             products = self.fetch_all(main_sql, main_sql_params)
 
@@ -679,8 +702,8 @@ class Product(DbConnect):
                 and limit_offset
             ):
                 if settings.PAGINATION_TYPE == PaginationType.FULL_PAGES:
-                    count_pages = self.count_full_pages(sql, sql_params)
+                    count_pages = self.count_full_pages(unordered_sql, sql_params)
                 else:
-                    count_pages = self.count_x_pages(sql, sql_params, settings.PAGINATION_NEXT_PAGES_COUNT)
+                    count_pages = self.count_x_pages(unordered_sql, sql_params, settings.PAGINATION_NEXT_PAGES_COUNT)
 
         return products, count_pages, messages, None, self._warnings
