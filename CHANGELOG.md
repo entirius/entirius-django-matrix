@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- The v1 and v2 product listings no longer answer 500 with the default `PAGINATION_TYPE = 1` when the page count runs
+  on the request thread: with `MATRIX_PRODUCTS_PARALLEL_QUERIES = False`, or when the parallel queries fail (for
+  example "too many clients") and the listing falls back to running them in turn. The count read a page size the
+  listing parameters do not carry (`KeyError: 'limit'`); it now runs the count the parallel path runs, over the whole
+  listing.
 - v1 `products/?magento_id=` and the Magento search listing `products_m2/` answer again; on psycopg 3 both failed
   with a 500, because the filter passed the ids as a tuple. The ids now go to Postgres as one bound integer array,
   used by the filter and by the order (products come back in the order of the ids). A value that is not a 32-bit
