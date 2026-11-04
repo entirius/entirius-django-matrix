@@ -9,8 +9,8 @@ All settings are read from Django settings via `getattr(settings, ...)` with the
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `PAGINATION_TYPE` | `int` | `1` | `0` = no page count, `1` = check next X pages only, `2` = full `COUNT(*)` on every request. Use `1` in production — `2` is slow on large catalogs. |
-| `PAGINATION_NEXT_PAGES_COUNT` | `int` | `5` | How many next pages to confirm existence of. Only applies when `PAGINATION_TYPE=1`. |
+| `PAGINATION_TYPE` | `int` | `1` | `0` = the v1 listing returns no page count; `1` and `2` = it counts the whole listing with one `COUNT(*)` per request (today both values run the same count). The v2 listing never counts: it reads one row past the page to know whether a next page exists, and the total comes from the count endpoint. |
+| `PAGINATION_NEXT_PAGES_COUNT` | `int` | `5` | Has no effect: meant to cap the `PAGINATION_TYPE=1` count at the next X pages, but the listing query has no limit for it to bound, so `1` counts everything like `2`. Kept so existing settings stay valid. |
 | `PAGINATION_MAX_RESULTS_COUNT` | `int` | `100` | Maximum allowed page size (`limit` query parameter cap). |
 | `PAGINATION_DEFAULT_RESULTS_COUNT` | `int` | `12` | Default page size when no `limit` is specified. |
 

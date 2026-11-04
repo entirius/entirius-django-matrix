@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Docs: `PAGINATION_TYPE` and `PAGINATION_NEXT_PAGES_COUNT` describe what the listing does. `1` counts the whole
+  listing like `2`, and `PAGINATION_NEXT_PAGES_COUNT` has no effect; nothing changes in the code.
 - The v1 and v2 product listings no longer answer 500 with the default `PAGINATION_TYPE = 1` when the page count runs
   on the request thread: with `MATRIX_PRODUCTS_PARALLEL_QUERIES = False`, or when the parallel queries fail (for
   example "too many clients") and the listing falls back to running them in turn. The count read a page size the
