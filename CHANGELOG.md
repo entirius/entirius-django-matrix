@@ -10,8 +10,8 @@
   (`output.quantities.get_bundle_quantities`); with a checkout that does not have it yet, a bundle keeps its own row
   as before. The `on_stock` read model counts bundles the same way, so a bundle with limits is no longer sold out
   over an optional component.
-- `stock/` reads the channel's global supplier, like the cart. With more than one Stock row per SKU it took
-  whichever came last.
+- `stock/` and the `on_stock` read model read the channel's global supplier, like the cart. With more than one Stock
+  row per SKU they took whichever came last.
 
 ## 4.5.0 — 2026-10-27
 

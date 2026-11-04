@@ -76,9 +76,13 @@ class FillReadModelOnStock(ProcessLoggerMixin):
         bundles_grouped_by_sku = groupby(bundles, key=lambda x: x[0])
 
         add_param = {"product__sku__in": self.skus} if self.skus else {}
-        quantities = Stock.annotated.filter(product__channel__idx=self.channel.idx, **add_param).values_list(
-            "product__sku", "saleable_quantity"
-        )
+        # The channel's global supplier, as stock/ and the cart read it.
+        quantities = Stock.annotated.filter(
+            product__channel__idx=self.channel.idx,
+            supplier__channel__idx=self.channel.idx,
+            supplier__is_global=True,
+            **add_param,
+        ).values_list("product__sku", "saleable_quantity")
 
         qtys = {}
         for sku, quantity in quantities:

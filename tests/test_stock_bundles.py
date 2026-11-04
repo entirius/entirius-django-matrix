@@ -100,3 +100,12 @@ class OnStockReadModelBundleTest(SimpleTestCase):
         with self._checkout([("BND", 15)], links, {"BND": 4}) as count:
             self._worker(skus=["BND"]).get_quantities_checkout()
         count.assert_called_once_with(["BND"], "ch")
+
+    def test_the_read_model_reads_the_global_supplier_as_stock_does(self):
+        with self._checkout([("SKU", 3)], [], {}):
+            from django_checkout.models import Stock
+
+            self._worker().get_quantities_checkout()
+        Stock.annotated.filter.assert_called_once_with(
+            product__channel__idx="ch", supplier__channel__idx="ch", supplier__is_global=True
+        )
