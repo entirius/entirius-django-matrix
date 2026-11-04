@@ -37,6 +37,12 @@
 - The listing count (`PAGINATION_TYPE` 1 and 2) no longer sorts what it counts. It wrapped the whole query,
   `ORDER BY` included, so Postgres sorted every product of the listing first; on 60k products the count drops from
   25 ms (11 ms before the tie-breaker) to 5 ms.
+- The v2 product listing no longer counts the whole listing on every page. It knows `has_next_page` from one row past
+  the page and leaves the total to `products/count/`, but with `PAGINATION_TYPE` 1 or 2 it also ran the v1 page count
+  and threw it away; with `MATRIX_PRODUCTS_PARALLEL_QUERIES` that count took two more database connections per page.
+  `find_by_api_query(count=False)` returns the rows only. On 60k products page 1 drops from 13 ms to 3 ms (parallel
+  queries on) and from 6 ms to 2 ms (off); v2 `search/` runs one count fewer per page. v1 and the v2 response bodies
+  are unchanged.
 
 
 ## 4.5.0 — 2026-10-27
