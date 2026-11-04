@@ -61,10 +61,9 @@ class DbConnect:
         return [nt_result(*row) for row in cursor.fetchall()]
 
     def count_x_pages(self, sql: str, params: dict, x: int):
-        sql_count = f"SELECT count(*) FROM ({sql}) as licz"
-        sql_count_params = dict(params)
-        sql_count_params["limit"] = params["limit"] * x
-        return self.fetch_count(sql_count, sql_count_params)
+        # The listing SQL has no LIMIT, so `x` bounds nothing: X_PAGES counts the whole listing, the same count the
+        # parallel path in Product.find_by_api_query runs.
+        return self.count_full_pages(sql, params)
 
     def execute_parallel_queries(self, main_sql: str, main_params: dict, count_sql: str, count_params: dict):
         """

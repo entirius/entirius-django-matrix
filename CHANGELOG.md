@@ -1,5 +1,52 @@
 # Changelog
 
+## 4.5.1 — 2026-11-04
+
+### Fixed
+
+- Docs: `PAGINATION_TYPE` and `PAGINATION_NEXT_PAGES_COUNT` describe what the listing does. `1` counts the whole
+  listing like `2`, and `PAGINATION_NEXT_PAGES_COUNT` has no effect; nothing changes in the code.
+- The v1 and v2 product listings no longer answer 500 with the default `PAGINATION_TYPE = 1` when the page count runs
+  on the request thread: with `MATRIX_PRODUCTS_PARALLEL_QUERIES = False`, or when the parallel queries fail (for
+  example "too many clients") and the listing falls back to running them in turn. The count read a page size the
+  listing parameters do not carry (`KeyError: 'limit'`); it now runs the count the parallel path runs, over the whole
+  listing.
+- v1 `products/?magento_id=` and the Magento search listing `products_m2/` answer again; on psycopg 3 both failed
+  with a 500, because the filter passed the ids as a tuple. The ids now go to Postgres as one bound integer array,
+  used by the filter and by the order (products come back in the order of the ids). A value that is not a 32-bit
+  integer matches no product instead of failing the query.
+- v2 and v1 `stock/` (client-visible): a bundle answers what its components allow, as the cart counts it, not its
+  own Stock row. A bundle with a component sold out answered its own Stock row (15 pieces in the seed), so a storefront
+  let the customer add it and the cart then marked the line `out_of_stock`. The count comes from checkout
+  (`output.quantities.get_bundle_quantities`); with a checkout that does not have it yet, a bundle keeps its own row
+  as before. The `on_stock` read model counts bundles the same way, so a bundle with limits is no longer sold out
+  over an optional component.
+- `stock/` and the `on_stock` read model read the channel's global supplier, like the cart. With more than one Stock
+  row per SKU they took whichever came last.
+- A paginated listing no longer repeats some products and loses others. Every product query now ends its `ORDER BY`
+  with `pr.id`; before, only a price sort and a category listing did, so products that tied on the default `on_stock`
+  order, on `s_on_stock` or on `s_name` could land on two pages or on none, depending on the query plan. Listings
+  without a category and search results were affected.
+- A multi-key sort with `s_price` first honours the next key (`s_price=asc&s_name=desc`). The price sort put `pr.id`
+  right after the price, so products of one price were ordered by id and the next key did nothing.
+- The default `on_stock` listing reads its page from an index again, in both directions. With `pr.id` at the end of
+  the `ORDER BY`, `idx_product_channel_stock (channel, on_stock)` no longer covered the order, and page 1 of a
+  60k-product channel took 83 ms (a sort of the whole channel) instead of 0.1 ms. Migration `0047` builds
+  `idx_product_channel_stock_id (channel, on_stock, id)`, `0048` drops the old index it makes redundant; both run
+  `CONCURRENTLY`, so the table stays writable. The tie-breaker now runs in the direction of the first sort key
+  (`pr.id DESC` after `on_stock DESC`), so a descending order is a backward scan of the same index. If `0047` is
+  interrupted it leaves an invalid index: `DROP INDEX CONCURRENTLY idx_product_channel_stock_id;` and migrate again.
+- The listing count (`PAGINATION_TYPE` 1 and 2) no longer sorts what it counts. It wrapped the whole query,
+  `ORDER BY` included, so Postgres sorted every product of the listing first; on 60k products the count drops from
+  25 ms (11 ms before the tie-breaker) to 5 ms.
+- The v2 product listing no longer counts the whole listing on every page. It knows `has_next_page` from one row past
+  the page and leaves the total to `products/count/`, but with `PAGINATION_TYPE` 1 or 2 it also ran the v1 page count
+  and threw it away; with `MATRIX_PRODUCTS_PARALLEL_QUERIES` that count took two more database connections per page.
+  `find_by_api_query(count=False)` returns the rows only. On 60k products page 1 drops from 13 ms to 3 ms (parallel
+  queries on) and from 6 ms to 2 ms (off); v2 `search/` runs one count fewer per page. v1 and the v2 response bodies
+  are unchanged.
+
+
 ## 4.5.0 — 2026-10-27
 
 ### Added
