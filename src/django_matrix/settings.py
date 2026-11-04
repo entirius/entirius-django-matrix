@@ -10,9 +10,10 @@ PRODUCT_ADDITIONAL_ATTRIBUTES = getattr(
     settings, "PRODUCT_ADDITIONAL_ATTRIBUTES", ["badge", "subname1", "subname2", "brand"]
 )
 
-# 0 - Pages of query will not be counted
-# 1 - Only Next X pages will be checked if existed. X is from PAGINATION_NEXT_PAGES_COUNT variable
-# 2 - Full count of pages (may slow down result on big database)
+# 0 - the v1 listing returns no page count
+# 1, 2 - the v1 listing counts the whole listing (one COUNT(*) per request); 1 was meant to stop after
+#        PAGINATION_NEXT_PAGES_COUNT pages, but nothing bounds that count, so both values behave the same.
+# The v2 listing never counts (docs/configuration.md § Pagination).
 PAGINATION_TYPE = getattr(settings, "PAGINATION_TYPE", 1)
 PAGINATION_NEXT_PAGES_COUNT = getattr(settings, "PAGINATION_NEXT_PAGES_COUNT", 5)
 PAGINATION_MAX_RESULTS_COUNT = getattr(settings, "PAGINATION_MAX_RESULTS_COUNT", 100)
