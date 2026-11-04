@@ -99,3 +99,26 @@ def test_products_of_one_price_follow_the_next_sort_key(api, tied_products):
     data = api.get(f"/api/matrix/v2/test-v2/products/?{QUERY}&page_size=3&s_price=asc&s_name=desc").json()
 
     assert [product["sku"] for product in data["results"]] == ["TIE-039", "TIE-038", "TIE-037"]
+
+
+@pytest.mark.parametrize("magento_id", [None, [7, 3]], ids=["no_default_order", "magento_ids"])
+def test_a_listing_without_the_default_order_ends_with_the_tie_breaker(searchable_channel, magento_id):
+    """The Magento search and suggest listings skip the default order: their pages need the tie-breaker too."""
+    from django_matrix.repository.raw_sql.product import TIE_BREAKER, Product
+    from django_matrix.utils.params import Query
+
+    ch, lang, currency, country = searchable_channel
+    _, _, _, (sql, _), _ = Product().find_by_api_query(
+        params=Query(
+            page=1, limit=12, language=lang.iso2, currency=currency.iso3, country=country.iso2, magento_id=magento_id
+        ),
+        channel=ch,
+        language=lang,
+        country=country,
+        currency=currency,
+        is_customer_verified=False,
+        apply_default_order=False,
+        limit_offset=False,
+        only_generate_sql=True,
+    )
+    assert sql.endswith(TIE_BREAKER)

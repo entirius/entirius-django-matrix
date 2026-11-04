@@ -614,7 +614,7 @@ class Product(DbConnect):
             sql += self._order_by(orders)
         elif params.magento_id:
             magento_id_list = ",".join(map(str, params.magento_id))
-            sql += f"ORDER BY array_position(ARRAY[{magento_id_list}]::integer[], pr.magento_id) "
+            sql += self._order_by([f"array_position(ARRAY[{magento_id_list}]::integer[], pr.magento_id) "])
         elif apply_default_order:
             if self._has_search_ranking:
                 orders.append("search_rank DESC ")
@@ -627,6 +627,8 @@ class Product(DbConnect):
                     channel, channel.default_order, orders, channel.default_order_direction, messages
                 )
                 sql += self._order_by(orders)
+        else:
+            sql += self._order_by([])
 
         count_pages = 0
 
