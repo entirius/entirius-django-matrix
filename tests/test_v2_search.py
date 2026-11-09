@@ -92,6 +92,21 @@ class TestSearchFindsProduct:
         for field in ("sku", "name", "url_key", "price"):
             assert field in product
 
+    def test_search_result_is_the_products_listing_item(self, api, simple_product, searchable_channel):
+        """A found product is the item `products/` answers for the same SKU: price object, parsed JSON fields."""
+        found = api.get(f"{BASE}{QS}&q=chair").json()["products"]["results"][0]
+        listed = api.get(f"/api/matrix/v2/test-v2/products/{QS}&sku=V2-SIMPLE-001").json()["results"][0]
+        assert found == listed
+        assert isinstance(found["price"], dict)
+        assert found["price"]["currency"] == "EUR"
+
+    def test_include_reaches_the_products(self, api, simple_product, searchable_channel):
+        """`include` works as in `products/`."""
+        found = api.get(f"{BASE}{QS}&q=chair&include=attributes").json()["products"]["results"][0]
+        listed = api.get(f"/api/matrix/v2/test-v2/products/{QS}&sku=V2-SIMPLE-001&include=attributes").json()
+        assert found == listed["results"][0]
+        assert "attributes" in found
+
 
 class TestSearchTotal:
     """`total` is the match count. Regression: it used to be the page size."""

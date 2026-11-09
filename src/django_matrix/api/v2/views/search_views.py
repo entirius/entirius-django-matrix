@@ -17,6 +17,7 @@ from django_matrix.api.v2.views.product_views import (
     _REGIONAL_PARAMS,
     _S_SORT_PARAM,
     _safe_int,
+    parse_include,
     parse_page,
     parse_prefix_params,
     parse_range_params,
@@ -41,6 +42,10 @@ SEARCH_PARAMS = [
     _Q_FILTER_PARAM,
     _R_FILTER_PARAM,
     _S_SORT_PARAM,
+    OpenApiParameter(
+        name="include",
+        description="Response groups of the products, as in `products/`: `visual_assets`, `attributes`, `links`, `full`.",
+    ),
 ]
 
 
@@ -55,7 +60,8 @@ class SearchView(ChannelMixin, APIView):
         description=(
             "Unified full-text + fuzzy search across products and categories. Returns "
             "`{products: {total, results, has_next_page}, categories: {results}, phrases: []}`.\n\n"
-            "The product section accepts the same `q_` / `r_` filters as `products/` to narrow results.\n\n"
+            "The product section accepts the same `q_` / `r_` filters as `products/` to narrow results, and its "
+            "products have the shape of `products/` results (`include` works the same).\n\n"
             "Example: `?q=sofa&scope=products,categories`"
         ),
         parameters=SEARCH_PARAMS,
@@ -96,6 +102,7 @@ class SearchView(ChannelMixin, APIView):
             page=page,
             page_size=page_size,
             extra_warnings=self.get_param_warnings(),
+            include=parse_include(request.query_params.get("include", "")),
         )
 
         response = Response(data)

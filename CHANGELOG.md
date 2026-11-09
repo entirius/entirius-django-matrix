@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Breaking** (client-visible): v2 `search/` answers its products in the shape of `products/` results. The section
+  returned the listing's raw rows: a flat `price` number with `gross`, `final_gross`, `special_gross` beside it,
+  `main_image`, `badges` and the other JSON fields as strings, and no currency, so a storefront needed a second
+  product mapping for search. The rows now go through the `products/` serializer: `price` is the same object (with
+  `currency`), the JSON fields are parsed, and `include` (`visual_assets`, `attributes`, `links`, `full`) works the
+  same. `total`, `has_next_page`, the categories and the phrases do not change.
+
 ## 4.5.1 — 2026-11-04
 
 ### Fixed
