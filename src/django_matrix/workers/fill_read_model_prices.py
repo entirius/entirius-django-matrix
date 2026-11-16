@@ -65,11 +65,14 @@ def _set_v2_range_fields(pp: "ProductPrice"):
         pp.range_to_special_net = (
             Decimal(pp.special_price_tax_config_opposite_to) if pp.special_price_tax_config_opposite_to else None
         )
-        pp.percent_off = (
-            int(calculate_badge(pp.special_price_range_from, pp.range_from))
+        # The cheapest special price and the cheapest regular price can belong to different variants: a "discount"
+        # below zero is no discount.
+        badge = (
+            calculate_badge(pp.special_price_range_from, pp.range_from)
             if pp.special_price_range_from and pp.range_from
             else None
         )
+        pp.percent_off = int(badge) if badge and badge > 0 else None
     else:
         pp.gross = pp.range_from if pp.range_from else pp.gross
         pp.net = Decimal(pp.price_tax_config_opposite_from) if pp.price_tax_config_opposite_from else pp.net
@@ -95,7 +98,7 @@ def calculate_badge(special_price, normal_price) -> Decimal:
         return Decimal(0)
 
 
-def cache_omnibus_price(channel: Channel, product_id: str = None, logger: ProcessLogger = None) -> dict:
+def cache_omnibus_price(channel: Channel, product_id: str | list[str] = None, logger: ProcessLogger = None) -> dict:
     try:
         from django_omnibus.models import OmnibusPrice
     except (ImportError, RuntimeError):
@@ -112,7 +115,9 @@ def cache_omnibus_price(channel: Channel, product_id: str = None, logger: Proces
     )
 
     if product_id:
-        omnibus_query = omnibus_query.filter(product__sku=product_id)
+        omnibus_query = omnibus_query.filter(
+            product__sku__in=[product_id] if isinstance(product_id, str) else product_id
+        )
 
     omnibus_cache = {}
     for price in omnibus_query:
@@ -189,6 +194,30 @@ def _flush_price_batch(pp_modified: dict, process_logger: ProcessLogger) -> None
         process_logger.clear_db_operation()
 
 
+def _skus_sharing_parent(channel: Channel, product_id: str) -> list[str]:
+    """The SKU together with its siblings under one configurable parent.
+
+    The parent's price is the range of all its variants, so a fill of one variant has to read
+    the prices of every variant, not only its own; otherwise the range collapses to that variant.
+    """
+    parent_id = (
+        ProductRepresentation.objects.filter(channel=channel, sku=product_id)
+        .values_list("parent_id", flat=True)
+        .first()
+    )
+    if parent_id is None:
+        return [product_id]
+    return list(
+        ProductRepresentation.objects.filter(channel=channel, parent_id=parent_id).values_list("sku", flat=True)
+    )
+
+
+def _prices_of_skus(pricelist, skus: list[str] | None):
+    if skus is None:
+        return get_price_qs_by_given_pricelist(pricelist=pricelist, sku=None)
+    return [price for sku in skus for price in get_price_qs_by_given_pricelist(pricelist=pricelist, sku=sku)]
+
+
 def fill_read_model_prices(channel: Channel, product_id: str = None):
     if not _HAS_PRICEMANAGER:
         logging.getLogger("django_matrix").info("Skipping price fill: django_pricemanager not installed")
@@ -198,10 +227,11 @@ def fill_read_model_prices(channel: Channel, product_id: str = None):
     process_logger.add_log_param("channel_idx", channel.idx)
 
     prices_repository = Prices(channel)
-    omnibus_cache = cache_omnibus_price(channel, product_id, process_logger)
+    skus = _skus_sharing_parent(channel, product_id) if product_id else None
+    omnibus_cache = cache_omnibus_price(channel, skus, process_logger)
 
     # Pre-fetch all ProductRepresentations for channel — avoids N+1 .get() per price
-    pr_query = {"sku": product_id} if product_id else {}
+    pr_query = {"sku__in": skus} if skus else {}
     pr_cache = {
         pr.sku: pr for pr in ProductRepresentation.objects.filter(channel=channel, **pr_query).select_related("parent")
     }
@@ -223,7 +253,7 @@ def fill_read_model_prices(channel: Channel, product_id: str = None):
             process_logger.add_log_param("currency", currency)
 
             if read_from_current():
-                prices = get_current_prices(channel.idx, currency, country, skus=[product_id] if product_id else None)
+                prices = get_current_prices(channel.idx, currency, country, skus=skus)
                 if not prices.exists():
                     process_logger.warning(f"No CurrentPrices for channel {channel.idx}")
                     continue
@@ -233,7 +263,7 @@ def fill_read_model_prices(channel: Channel, product_id: str = None):
                 if not latest_pricelist:
                     process_logger.warning(f"No pricelists for channel {channel.idx}")
                     continue
-                prices = get_price_qs_by_given_pricelist(pricelist=latest_pricelist, sku=product_id)
+                prices = _prices_of_skus(latest_pricelist, skus)
                 is_only_for_verified_user = latest_pricelist.sale_channel.is_only_for_verified_user
 
             # Pre-fetch all existing ProductPrice for this (channel, currency, country)

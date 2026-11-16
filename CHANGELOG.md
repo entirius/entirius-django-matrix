@@ -15,6 +15,18 @@
 - v2 `search/` has a typed OpenAPI response (`SearchResponse`, its products are `ProductCore` items); the spec used to
   describe it in prose only.
 
+### Fixed
+
+- A read-model fill of one product (the per-product sync after a price, stock or link change) no longer degrades
+  the configurable parent. A fill of one variant rewrote the parent's price from that variant alone, so a range
+  ("From €549") became the price of the one variant that changed; it now reads the prices of all variants under the
+  parent. A fill of the parent itself dropped the search text and filterable attributes of its variants, so the
+  parent was no longer found by a variant's name or filtered by a variant's value; it now takes them from the
+  variants already in the read model. A full fill of the channel is unchanged.
+- A price range no longer carries a negative `percent_off`: the cheapest special price and the cheapest regular
+  price can belong to different variants, and such a pair is no discount (`percent_off` is `null`).
+
+
 ## 4.5.1 — 2026-11-04
 
 ### Fixed

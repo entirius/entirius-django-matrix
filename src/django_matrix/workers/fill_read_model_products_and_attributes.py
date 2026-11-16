@@ -54,6 +54,17 @@ def stale_rows(updated_at) -> Q:
     return Q(updated_at__lt=updated_at) | Q(updated_at__isnull=True)
 
 
+def merge_variant_data(
+    search: list | None, attributes_filter: dict | None, variant_search: list | None, variant_filter: dict | None
+) -> tuple[list, dict]:
+    """A configurable parent carries the search text and filterable attributes of all its variants."""
+    merged_search = list(set((search or []) + (variant_search or [])))
+    merged_filter = {key: list(values) for key, values in (attributes_filter or {}).items()}
+    for feature_idx, values in (variant_filter or {}).items():
+        merged_filter[feature_idx] = list(set(merged_filter.get(feature_idx, []) + values))
+    return merged_search, merged_filter
+
+
 def import_reviews_for_product(sku):
     # RuntimeError: an app that is installed but not in INSTALLED_APPS raises it on model import, not ImportError.
     try:
@@ -368,20 +379,12 @@ def fill_read_model_products_and_attributes(channel: Channel, product_class: int
                     parent_sku = parent.product_configurable.sku
                     rep_parent = product_representation_cache.get(parent_sku, None)
                     if rep_parent:
-                        parent_search = rep_parent.search
-                        if product_attributes_search:
-                            if isinstance(rep_parent.search, list) and parent_search:
-                                rep_parent.search = list(set(parent_search + product_attributes_search))
-                            else:
-                                rep_parent.search = product_attributes_search
-
-                        for feature_idx, attributes in product_filtrable_attributes.items():
-                            if feature_idx in rep_parent.attributes_filter:
-                                rep_parent.attributes_filter[feature_idx] = list(
-                                    set(rep_parent.attributes_filter[feature_idx] + attributes)
-                                )
-                            else:
-                                rep_parent.attributes_filter[feature_idx] = attributes
+                        rep_parent.search, rep_parent.attributes_filter = merge_variant_data(
+                            rep_parent.search,
+                            rep_parent.attributes_filter,
+                            product_attributes_search,
+                            product_filtrable_attributes,
+                        )
                         product_representation_cache[parent_sku] = rep_parent
                         product_representation_to_save[parent_sku] = rep_parent
                         break
@@ -431,6 +434,13 @@ def fill_read_model_products_and_attributes(channel: Channel, product_class: int
                 }
                 for pl in links_for_sku
             ] or None
+
+            if product_id and (own_rep := product_representation_cache.get(sku)):
+                # Variants are not in this run; take what they already carry from the read model.
+                for variant_search, variant_filter in own_rep.childs.values_list("search", "attributes_filter"):
+                    product_attributes_search, product_filtrable_attributes = merge_variant_data(
+                        product_attributes_search, product_filtrable_attributes, variant_search, variant_filter
+                    )
 
             kind_of_product_value = KindOfProduct.map(pim_product.real_product.kind_of_product)
             pr = ProductRepresentation(
