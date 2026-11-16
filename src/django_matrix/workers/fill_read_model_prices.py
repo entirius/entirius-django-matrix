@@ -65,11 +65,14 @@ def _set_v2_range_fields(pp: "ProductPrice"):
         pp.range_to_special_net = (
             Decimal(pp.special_price_tax_config_opposite_to) if pp.special_price_tax_config_opposite_to else None
         )
-        pp.percent_off = (
-            int(calculate_badge(pp.special_price_range_from, pp.range_from))
+        # The cheapest special price and the cheapest regular price can belong to different variants: a "discount"
+        # below zero is no discount.
+        badge = (
+            calculate_badge(pp.special_price_range_from, pp.range_from)
             if pp.special_price_range_from and pp.range_from
             else None
         )
+        pp.percent_off = int(badge) if badge and badge > 0 else None
     else:
         pp.gross = pp.range_from if pp.range_from else pp.gross
         pp.net = Decimal(pp.price_tax_config_opposite_from) if pp.price_tax_config_opposite_from else pp.net
