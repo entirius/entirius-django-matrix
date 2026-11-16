@@ -6,6 +6,7 @@
 
 from django_matrix.models import Channel
 from django_matrix.services.meta import build_meta
+from django_matrix.services.product_serializer import serialize_products
 from django_matrix.services.product_service import count_products, list_products
 
 # Shorter queries match most of the catalogue, so they are answered without touching the DB.
@@ -27,8 +28,9 @@ def search(
     page: int = 1,
     page_size: int = 12,
     extra_warnings: list[dict] | None = None,
+    include: set[str] | None = None,
 ) -> dict:
-    """Unified search. Returns sections based on scope param."""
+    """Unified search. Returns sections based on scope param; products have the `products/` shape (`include` alike)."""
     scopes = {s.strip() for s in scope.split(",")}
     result = {}
     warnings: list[dict] = list(extra_warnings or [])
@@ -42,6 +44,7 @@ def search(
             sort,
             page,
             page_size,
+            include or set(),
             channel=channel,
             language=language,
             currency=currency,
@@ -75,10 +78,13 @@ def _empty_result(scopes: set[str], warnings: list[dict]) -> dict:
     return result
 
 
-def _search_products(sort: list[dict] | None, page: int, page_size: int, **common) -> tuple[dict, list[dict]]:
+def _search_products(
+    sort: list[dict] | None, page: int, page_size: int, include: set[str], **common
+) -> tuple[dict, list[dict]]:
     """Products section plus repository warnings. `total` is the match count, not the page size.
 
-    `common` is the filter set shared by the listing and its count, so the two cannot drift apart.
+    `common` is the filter set shared by the listing and its count, so the two cannot drift apart. The rows go
+    through the serializer of `products/`, so a client reads one product shape from both endpoints.
     """
     results, has_next_page, warnings = list_products(
         page=page,
@@ -97,7 +103,10 @@ def _search_products(sort: list[dict] | None, page: int, page_size: int, **commo
         # count_products repeats the filter warnings list_products already returned — drop them,
         # or every filter warning shows up twice from page 2 onwards.
         total, _ = count_products(**common)
-    return {"total": total, "results": results, "has_next_page": has_next_page}, warnings
+    serialized = serialize_products(
+        results, common["language"], common["currency"], common["country"], common["channel"], include
+    )
+    return {"total": total, "results": serialized, "has_next_page": has_next_page}, warnings
 
 
 def _total_is_derivable(results: list, has_next_page: bool, page: int) -> bool:
