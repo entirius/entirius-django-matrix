@@ -245,3 +245,14 @@ class TestSearchScope:
     def test_unknown_channel_404(self, api):
         response = api.get("/api/matrix/v2/nonexistent/search/?q=test&language=en")
         assert response.status_code == 404
+
+
+class TestSearchOpenApi:
+    def test_spec_types_the_products_as_products_items(self):
+        from drf_spectacular.generators import SchemaGenerator
+
+        schema = SchemaGenerator().get_schema(request=None, public=True)
+        ok = schema["paths"]["/api/matrix/v2/{channel_idx}/search/"]["get"]["responses"]["200"]
+        assert ok["content"]["application/json"]["schema"]["$ref"].endswith("/SearchResponse")
+        items = schema["components"]["schemas"]["SearchProducts"]["properties"]["results"]["items"]
+        assert items["$ref"].endswith("/ProductCore")

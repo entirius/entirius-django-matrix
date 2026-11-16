@@ -4,7 +4,7 @@
 
 """Search v2 — unified search with scope param."""
 
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,6 +23,7 @@ from django_matrix.api.v2.views.product_views import (
     parse_range_params,
     parse_sort_params,
 )
+from django_matrix.schemas.responses.search import SearchResponse
 from django_matrix.services import search_service
 
 # Declared once, consumed twice: by @extend_schema and by known_query_params (param.unknown).
@@ -65,14 +66,7 @@ class SearchView(ChannelMixin, APIView):
             "Example: `?q=sofa&scope=products,categories`"
         ),
         parameters=SEARCH_PARAMS,
-        responses={
-            200: OpenApiResponse(
-                description=(
-                    "Search results: {products: {total, results, has_next_page}, categories: {results}, "
-                    "phrases: [], meta: {status, warnings: [{code, param, message}]}}"
-                )
-            )
-        },
+        responses={200: SearchResponse},
         tags=["Matrix Search"],
     )
     def get(self, request, channel_idx=None):

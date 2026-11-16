@@ -31,5 +31,9 @@ param the backend can't apply (typo, non-sortable field), the request still succ
 names the offending `param` and a stable `code`. Empty `warnings` = everything applied.
 :::
 
+`/search/` answers its products (`products.results`) in the shape of `/products/` results, `include` works the same:
+one product reader serves both endpoints. Before the next major release it returned the listing's raw rows (flat
+`price`, `gross`, `final_gross`, `special_gross`; `main_image` and `badges` as strings; no currency).
+
 For release history see the [Changelog](/volkanos/modules/matrix/changelog/). Internal response shapes and
 architectural decisions live in `django-matrix/docs/api-v2-*.md`.
