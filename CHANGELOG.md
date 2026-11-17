@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+> **Read before upgrading. This is a major release (5.0.0) for two reasons, and each needs an action.**
+>
+> 1. **Run a full read-model fill once after the upgrade: `python manage.py fill-read-model`.** Release 4.5.1 has a
+>    bug in the fill of one product, the sync that runs after every price, stock or link change (older releases were
+>    not checked; treat them the same). A fill of one variant rewrote the configurable parent's price from that
+>    variant alone, so "From €549" became the price of the variant that changed. A fill of the parent itself dropped
+>    the search text and filterable attributes of its variants. Both stay wrong until the next full fill, so a shop
+>    on 4.5.1 has such rows now. This release stops new ones; it does not repair the rows already written. Only the
+>    full fill does. Skip it and the storefront keeps showing wrong "From" prices.
+> 2. **v2 `search/` returns products in another shape** (the shape of `products/` results). A storefront that reads
+>    the old flat fields (`price` as a number, `gross`, `final_gross`, `main_image` and `badges` as strings) shows
+>    search results without prices and pictures. Deploy a storefront that reads `products/` items together with this
+>    release (`entirius-pwa-storefront` does since its commit `807a264`). Details under "Changed".
+>
+> There is no 4.5.2 with the fix alone: the fix ships only here.
+
 ### Changed
 
 - **Breaking** (client-visible): v2 `search/` answers its products in the shape of `products/` results. The section
