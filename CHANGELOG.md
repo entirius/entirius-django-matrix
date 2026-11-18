@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 5.0.0 — 2026-11-18
 
 > **Read before upgrading. This is a major release (5.0.0) for two reasons, and each needs an action.**
 >
