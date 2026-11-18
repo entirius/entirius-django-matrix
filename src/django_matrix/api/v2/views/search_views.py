@@ -4,7 +4,7 @@
 
 """Search v2 — unified search with scope param."""
 
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,11 +17,13 @@ from django_matrix.api.v2.views.product_views import (
     _REGIONAL_PARAMS,
     _S_SORT_PARAM,
     _safe_int,
+    parse_include,
     parse_page,
     parse_prefix_params,
     parse_range_params,
     parse_sort_params,
 )
+from django_matrix.schemas.responses.search import SearchResponse
 from django_matrix.services import search_service
 
 # Declared once, consumed twice: by @extend_schema and by known_query_params (param.unknown).
@@ -41,6 +43,10 @@ SEARCH_PARAMS = [
     _Q_FILTER_PARAM,
     _R_FILTER_PARAM,
     _S_SORT_PARAM,
+    OpenApiParameter(
+        name="include",
+        description="Response groups of the products, as in `products/`: `visual_assets`, `attributes`, `links`, `full`.",
+    ),
 ]
 
 
@@ -55,18 +61,12 @@ class SearchView(ChannelMixin, APIView):
         description=(
             "Unified full-text + fuzzy search across products and categories. Returns "
             "`{products: {total, results, has_next_page}, categories: {results}, phrases: []}`.\n\n"
-            "The product section accepts the same `q_` / `r_` filters as `products/` to narrow results.\n\n"
+            "The product section accepts the same `q_` / `r_` filters as `products/` to narrow results, and its "
+            "products have the shape of `products/` results (`include` works the same).\n\n"
             "Example: `?q=sofa&scope=products,categories`"
         ),
         parameters=SEARCH_PARAMS,
-        responses={
-            200: OpenApiResponse(
-                description=(
-                    "Search results: {products: {total, results, has_next_page}, categories: {results}, "
-                    "phrases: [], meta: {status, warnings: [{code, param, message}]}}"
-                )
-            )
-        },
+        responses={200: SearchResponse},
         tags=["Matrix Search"],
     )
     def get(self, request, channel_idx=None):
@@ -96,6 +96,7 @@ class SearchView(ChannelMixin, APIView):
             page=page,
             page_size=page_size,
             extra_warnings=self.get_param_warnings(),
+            include=parse_include(request.query_params.get("include", "")),
         )
 
         response = Response(data)

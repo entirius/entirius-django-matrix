@@ -1,5 +1,48 @@
 # Changelog
 
+## 5.0.0 — 2026-11-18
+
+> **Read before upgrading. This is a major release (5.0.0) for two reasons, and each needs an action.**
+>
+> 1. **Run a full read-model fill once after the upgrade: `python manage.py fill-read-model`.** Release 4.5.1 has a
+>    bug in the fill of one product, the sync that runs after every price, stock or link change (older releases were
+>    not checked; treat them the same). A fill of one variant rewrote the configurable parent's price from that
+>    variant alone, so "From €549" became the price of the variant that changed. A fill of the parent itself dropped
+>    the search text and filterable attributes of its variants. Both stay wrong until the next full fill, so a shop
+>    on 4.5.1 has such rows now. This release stops new ones; it does not repair the rows already written. Only the
+>    full fill does. Skip it and the storefront keeps showing wrong "From" prices.
+> 2. **v2 `search/` returns products in another shape** (the shape of `products/` results). A storefront that reads
+>    the old flat fields (`price` as a number, `gross`, `final_gross`, `main_image` and `badges` as strings) shows
+>    search results without prices and pictures. Deploy a storefront that reads `products/` items together with this
+>    release (`entirius-pwa-storefront` does since its commit `807a264`). Details under "Changed".
+>
+> There is no 4.5.2 with the fix alone: the fix ships only here.
+
+### Changed
+
+- **Breaking** (client-visible): v2 `search/` answers its products in the shape of `products/` results. The section
+  returned the listing's raw rows: a flat `price` number with `gross`, `final_gross`, `special_gross` beside it,
+  `main_image`, `badges` and the other JSON fields as strings, and no currency, so a storefront needed a second
+  product mapping for search. The rows now go through the `products/` serializer: `price` is the same object (with
+  `currency`), the JSON fields are parsed, and `include` (`visual_assets`, `attributes`, `links`, `full`) works the
+  same. `total`, `has_next_page`, the categories and the phrases do not change. A breaking change of the public
+  API: the next release is a major one. Clients that read the old flat fields (the storefront's header search among
+  them) must read `products/` items instead.
+- v2 `search/` has a typed OpenAPI response (`SearchResponse`, its products are `ProductCore` items); the spec used to
+  describe it in prose only.
+
+### Fixed
+
+- A read-model fill of one product (the per-product sync after a price, stock or link change) no longer degrades
+  the configurable parent. A fill of one variant rewrote the parent's price from that variant alone, so a range
+  ("From €549") became the price of the one variant that changed; it now reads the prices of all variants under the
+  parent. A fill of the parent itself dropped the search text and filterable attributes of its variants, so the
+  parent was no longer found by a variant's name or filtered by a variant's value; it now takes them from the
+  variants already in the read model. A full fill of the channel is unchanged.
+- A price range no longer carries a negative `percent_off`: the cheapest special price and the cheapest regular
+  price can belong to different variants, and such a pair is no discount (`percent_off` is `null`).
+
+
 ## 4.5.1 — 2026-11-04
 
 ### Fixed
