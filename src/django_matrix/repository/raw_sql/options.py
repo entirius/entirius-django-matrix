@@ -28,6 +28,33 @@ from django_matrix.utils.options_getter import (
 from django_matrix.utils.params import OptionsQuery
 from django_matrix.utils.unit_options import convert_bounds_for_lang
 
+FALLBACK_LANGUAGE_ISO = "en"
+
+
+def t9n_sql(column: str, idx_column: str) -> str:
+    """SQL for a translated name: requested language -> channel default language -> en -> idx.
+
+    Empty strings count as missing. Needs ``language_iso`` and ``default_language_iso`` params
+    (see ``language_sql_params``).
+    """
+    return (
+        f"COALESCE(NULLIF({column}->>%(language_iso)s, ''), "
+        f"NULLIF({column}->>%(default_language_iso)s, ''), "
+        f"NULLIF({column}->>'{FALLBACK_LANGUAGE_ISO}', ''), {idx_column})"
+    )
+
+
+FEATURE_NAME_SQL = t9n_sql("f.name_t9n", "f.idx")
+ATTRIBUTE_NAME_SQL = t9n_sql("a.name_t9n", "a.idx")
+
+
+def language_sql_params(channel: Channel, language: Language) -> dict[str, str]:
+    default_language = channel.default_language
+    return {
+        "language_iso": language.iso2,
+        "default_language_iso": default_language.iso2 if default_language else FALLBACK_LANGUAGE_ISO,
+    }
+
 
 class Options(DbConnect):
     app_name = "django_pim"
@@ -49,7 +76,7 @@ class Options(DbConnect):
         self.price_range: tuple[float, float] | None = None
         self.base_sql_params = {
             "channel_id": self.channel.pk,
-            "language_iso": self.language.iso2,
+            **language_sql_params(self.channel, self.language),
             "bool_type": FeatureTypeEnum.BOOL,
             "select_type": FeatureTypeEnum.SELECT,
             "multiselect_type": FeatureTypeEnum.MULTISELECT,
@@ -65,13 +92,13 @@ class Options(DbConnect):
 
         sql_params = {
             "channel_id": channel.pk,
-            "language_iso": language.iso2,
+            **language_sql_params(channel, language),
         }
 
-        sql = """
+        sql = f"""
         SELECT 
             f.idx as feature_idx,
-            f.name_t9n->>%(language_iso)s as feature_name,
+            {FEATURE_NAME_SQL} as feature_name,
             ccf.position
         FROM django_matrix_sortablefeatures ccf
         JOIN django_pim_feature f ON ccf.feature_id = f.id
@@ -111,15 +138,15 @@ class Options(DbConnect):
         self, products_sql: str | None, products_sql_params: dict | None
     ) -> list[dict[str, Any]]:
 
-        metadata_sql = """
+        metadata_sql = f"""
         SELECT 
             f.idx as feature_idx,
-            f.name_t9n->>%(language_iso)s as feature_name,
+            {FEATURE_NAME_SQL} as feature_name,
             f.filter_type,
             cf.position,
             cf.is_or_filter,
             a.idx as attribute_idx,
-            a.name_t9n->>%(language_iso)s as attribute_name,
+            {ATTRIBUTE_NAME_SQL} as attribute_name,
             a.display_order,
             a.extension,
             f.feature_type
@@ -131,7 +158,7 @@ class Options(DbConnect):
         UNION ALL
         SELECT 
             f.idx as feature_idx,
-            f.name_t9n->>%(language_iso)s as feature_name,
+            {FEATURE_NAME_SQL} as feature_name,
             f.filter_type,
             cf.position,
             cf.is_or_filter,
@@ -146,7 +173,7 @@ class Options(DbConnect):
         UNION ALL
         SELECT 
             f.idx as feature_idx,
-            f.name_t9n->>%(language_iso)s as feature_name,
+            {FEATURE_NAME_SQL} as feature_name,
             f.filter_type,
             cf.position,
             cf.is_or_filter,
@@ -161,7 +188,7 @@ class Options(DbConnect):
         UNION ALL
         SELECT
             f.idx as feature_idx,
-            f.name_t9n->>%(language_iso)s as feature_name,
+            {FEATURE_NAME_SQL} as feature_name,
             f.filter_type,
             cf.position,
             cf.is_or_filter,
@@ -435,10 +462,10 @@ class Options(DbConnect):
 
     def _add_numeric_feature_ranges(self, products_sql: str | None, products_sql_params: dict | None) -> None:
         """Mass / temperature / length filterable features -> Slide range in the language's unit."""
-        meta_sql = """
+        meta_sql = f"""
         SELECT
             f.idx as feature_idx,
-            f.name_t9n->>%(language_iso)s as feature_name,
+            {FEATURE_NAME_SQL} as feature_name,
             f.feature_type,
             cf.position
         FROM django_matrix_filterablefeatures cf

@@ -14,7 +14,8 @@ interactive **[Storefront API explorer](/api/storefront/#tag/matrix-products)**.
 :::tip[Filtering]
 Filter with the `q_{feature_idx}` (value) and `r_{feature_idx}` (range) query params — `q_color=red`,
 `r_price=100&r_price=500`. They are the backend filter contract, documented per endpoint in the explorer.
-The `options/` endpoint returns the available filters with context-sensitive counts for the sidebar.
+The `options/` endpoint returns the available filters with context-sensitive counts for the sidebar. Feature and option labels fall back from the requested `language` to the channel's default
+language, then `en`, then the idx.
 :::
 
 :::tip[Sorting]

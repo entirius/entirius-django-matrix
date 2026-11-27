@@ -1,5 +1,14 @@
 # Changelog
 
+## [5.0.1] - 2026-11-27
+
+### Fixed
+
+- v2 `options/` (and v1 options) showed the raw idx ("anvora") as the label of a filter group, option or sort
+  entry that had no translation in the requested language. Names now fall back: requested language, then the
+  channel's default language, then `en`, then the idx. An empty string counts as missing. Applies to feature
+  names (filter group titles, range and sort labels) and attribute names (option labels).
+
 ## 5.0.0 — 2026-11-18
 
 > **Read before upgrading. This is a major release (5.0.0) for two reasons, and each needs an action.**
