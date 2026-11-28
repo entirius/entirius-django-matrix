@@ -1,6 +1,6 @@
 [project]
 name = "entirius-django-matrix"
-version = "5.0.0"
+version = "5.0.1"
 description = "Storefront read model for Entirius: a denormalized catalog projection with faceted search, prices and stock"
 keywords = ["django", "ecommerce", "entirius", "storefront", "read-model", "catalog", "search"]
 classifiers = [

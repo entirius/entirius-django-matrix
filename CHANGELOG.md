@@ -9,6 +9,11 @@
   as `final_price` and `price_range` on the regular listing.
 - Cached views skip the cache for requests with an Authorization header (`USE_CACHED_VIEWS=True`): such a request
   neither reads a cached response nor stores its own. Anonymous requests are cached as before.
+
+## [5.0.1] - 2026-11-27
+
+### Fixed
+
 - v2 `options/` (and v1 options) showed the raw idx ("anvora") as the label of a filter group, option or sort
   entry that had no translation in the requested language. Names now fall back: requested language, then the
   channel's default language, then `en`, then the idx. An empty string counts as missing. Applies to feature
