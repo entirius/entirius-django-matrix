@@ -2,6 +2,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+from collections.abc import Callable
+from functools import wraps
+
+from django.http import HttpRequest, HttpResponse
 from django.urls import include, path
 
 # as_view
@@ -32,11 +36,24 @@ from django_matrix.views.search.suggest import suggest_listing_view
 from django_matrix.views.stock.listing import stock_details_view, stock_listing_view
 
 
+def cache_anonymous_only(view: Callable, cache_ttl: int) -> Callable:
+    """``cache_page`` for anonymous requests; a request with an Authorization header skips the cache."""
+    cached_view = cache_page(cache_ttl)(view)
+
+    @wraps(view)
+    def _wrapped(request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        if "Authorization" in request.headers:
+            return view(request, *args, **kwargs)
+        return cached_view(request, *args, **kwargs)
+
+    return _wrapped
+
+
 def apply_cache(view, custom_cache_ttl=None):
     endpoint_name = view.__name__
     cache_ttl = custom_cache_ttl if custom_cache_ttl else settings.CACHE_TTL
     return (
-        cache_page(cache_ttl)(view)
+        cache_anonymous_only(view, cache_ttl)
         if all(
             [
                 not any(endpoint_name.startswith(endpoint) for endpoint in LIST_OF_DISABLED_CACHE_ENDPOINTS_MATRIX),

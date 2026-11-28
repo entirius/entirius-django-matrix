@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- v1 products with full data follow the verified-customer price rule: `products/?fetch_full_data=true` returns
+  `price: null` for a price flagged `is_only_for_verified_user` unless the caller is a verified customer, the same
+  as `final_price` and `price_range` on the regular listing.
+- Cached views skip the cache for requests with an Authorization header (`USE_CACHED_VIEWS=True`): such a request
+  neither reads a cached response nor stores its own. Anonymous requests are cached as before.
 - v2 `options/` (and v1 options) showed the raw idx ("anvora") as the label of a filter group, option or sort
   entry that had no translation in the requested language. Names now fall back: requested language, then the
   channel's default language, then `en`, then the idx. An empty string counts as missing. Applies to feature
