@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- v1 products with full data follow the verified-customer price rule: `products/?fetch_full_data=true` returns
+  `price: null` for a price flagged `is_only_for_verified_user` unless the caller is a verified customer, the same
+  as `final_price` and `price_range` on the regular listing.
+- Cached views skip the cache for requests with an Authorization header (`USE_CACHED_VIEWS=True`): such a request
+  neither reads a cached response nor stores its own. Anonymous requests are cached as before.
+
 ## [5.0.1] - 2026-11-27
 
 ### Fixed

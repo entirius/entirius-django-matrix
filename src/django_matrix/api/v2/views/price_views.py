@@ -46,6 +46,8 @@ class PricesView(ChannelMixin, APIView):
 
         # TODO: Implement per-customer pricing via pricetuner / customer group
         # For now, returns empty — frontend falls back to public price from products/
+        # TODO(verified-price): same change covers `is_only_for_verified_user` in v2, see
+        # `services/product_serializer.py` `_build_price`.
         data = {}
 
         response = Response(data)

@@ -39,7 +39,7 @@ All settings are read from Django settings via `getattr(settings, ...)` with the
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `USE_CACHED_VIEWS` | `bool` | `False` | Enable Django `cache_page` on all API views. Requires a working Django cache backend. |
+| `USE_CACHED_VIEWS` | `bool` | `False` | Enable Django `cache_page` on all API views. Requires a working Django cache backend. Requests with an `Authorization` header skip the cache (neither read nor stored). |
 | `CACHE_TTL` | `int` | `900` | Cache TTL in seconds (default: 15 minutes). Must be an integer — non-integer values disable caching. |
 | `LIST_OF_DISABLED_CACHE_ENDPOINTS_MATRIX` | `list[str]` | `[]` | View function name prefixes to exclude from caching even when `USE_CACHED_VIEWS=True`. Valid values: `"attributes_extended_listing"`, `"attributes_listing"`, `"prices_details"`, `"prices_listing"`, `"products_details"`, `"products_listing"`, `"search_listing"`, `"suggest_listing"`. |
 

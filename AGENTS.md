@@ -87,6 +87,8 @@ table have no position and sort last).
 - The public v2 views (products, count, options, search, categories, stock, omnibus) declare
   `authentication_classes = []` and `AllowAny`: credentials are ignored there, whatever the service's DRF defaults.
   A new public view declares the same; `prices/` is the one JWT view.
+- Open: v2 does not apply `is_only_for_verified_user` (v1 does, `dto/view/product.py` `show_price`). It lands with
+  per-customer `prices/`; grep `TODO(verified-price)`. `tests/test_v2_verified_price.py` is a strict xfail until then.
 - Most optional sibling imports catch `(ImportError, RuntimeError)` (`RuntimeError`: installed but not in
   `INSTALLED_APPS`); the omnibus import of `repository/orm/prices.py`, `dto/view/price.py` and
   `signals/receivers.py` still catch `ImportError` only.

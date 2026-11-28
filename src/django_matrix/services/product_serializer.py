@@ -180,6 +180,10 @@ def _serialize_product(
 
 def _build_price(raw: dict, currency_code: str) -> dict | None:
     """Build v2 price object from raw SQL row."""
+    # TODO(verified-price): `is_only_for_verified_user` is not applied in v2 yet; v1 applies it through
+    # `dto.view.product.show_price`. Do it together with per-customer `prices/` (`api/v2/views/price_views.py`):
+    # `price` is None here for a flagged row, the verified customer reads the price from `prices/`.
+    # `tests/test_v2_verified_price.py` is a strict xfail until then.
     if raw.get("final_price") is None and raw.get("range_from") is None and raw.get("final_gross") is None:
         return None
 

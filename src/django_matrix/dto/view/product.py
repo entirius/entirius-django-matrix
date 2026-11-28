@@ -17,6 +17,12 @@ if TYPE_CHECKING:
     from django_matrix.models import Channel
 
 
+def show_price(product: dict, is_customer_verified: bool | None) -> bool:
+    """A price row flagged ``is_only_for_verified_user`` is shown to verified customers only."""
+    is_only_for_verified_user = product.get("is_only_for_verified_user", True)
+    return not bool(not is_customer_verified and is_only_for_verified_user)
+
+
 @dataclass
 class Product(DTO):
     sku: str
@@ -50,8 +56,7 @@ class Product(DTO):
         self.badges = []
         self.subnames = []
         if product:
-            is_only_for_verified_user = product["is_only_for_verified_user"] if "is_only_for_verified_user" else True
-            show_price = not bool(not is_customer_verified and is_only_for_verified_user)
+            price_visible = show_price(product, is_customer_verified)
             self.sku = product["sku"] if "sku" in product else ""
             self.product_type = product["product_type"] if "product_type" in product else "BASE"
             self.name = product["name"] if "name" in product else self.sku
@@ -60,9 +65,9 @@ class Product(DTO):
             self.url_key = product["url_key"] if "url_key" in product else ""
             self.on_stock = product["on_stock"] if "on_stock" in product else False
             self.have_product_links = product["have_product_links"] if "have_product_links" in product else False
-            self.final_price = str(product["final_price"]) if "final_price" in product and show_price else None
-            price_from = str(product["range_from"]) if "range_from" in product and show_price else None
-            price_to = str(product["range_to"]) if "range_to" in product and show_price else None
+            self.final_price = str(product["final_price"]) if "final_price" in product and price_visible else None
+            price_from = str(product["range_from"]) if "range_from" in product and price_visible else None
+            price_to = str(product["range_to"]) if "range_to" in product and price_visible else None
             self.price_range = {"from": price_from, "to": price_to}
             self.parent_sku = product["parent_sku"] if "parent_sku" in product else None
             self.parent_url_key = product["parent_url_key"] if "parent_url_key" in product else None
@@ -129,7 +134,11 @@ def product_collection(
         product = product_class(product=product_dict, is_customer_verified=is_customer_verified)
         sku_list.append(product.sku)
 
-        if include_full_price_data and isinstance(product, ProductFullData):
+        if (
+            include_full_price_data
+            and isinstance(product, ProductFullData)
+            and show_price(product_dict, is_customer_verified)
+        ):
             price_obj = Price(price=product_dict)
             if channel and country and currency:
                 msg = price_obj.tune_price(channel=channel, country=country, currency=currency, customer=customer)
